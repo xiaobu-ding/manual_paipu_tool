@@ -1,0 +1,9 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Node (only needed if you run src/_gen_hub.js locally)
+node_modules/
+npm-debug.log*

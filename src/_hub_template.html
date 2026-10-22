@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>麻将牌谱工具箱 · json6 生成</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--line:#e2e6ea;--ink:#1f2733;--muted:#6b7684;--accent:#2f6df0;--accent2:#0a8f5b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+header.top{padding:14px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+header.top h1{margin:0;font-size:18px}
+header.top p{margin:4px 0 0;opacity:.9;font-size:13px}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 16px 80px}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tabbtn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 16px;border-radius:8px;font:inherit;font-size:14px}
+.tabbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+iframe.tool{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;min-height:2600px;display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+input,textarea,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+textarea{width:100%}
+pre{white-space:pre-wrap;word-break:break-all;padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:320px;font:12px/1.45 ui-monospace,Consolas,monospace}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header class="top">
+<h1>麻将牌谱工具箱 · json6 生成</h1>
+<p>三个工具集成到一个网页：① 手输牌谱转 json6 · ② 当前牌局生成器 · ③ 雀魂牌谱抓取。生成的 json6 可直接交给 mortal / akochan 跑分，或粘到 tenhou.net/5 预览。</p>
+</header>
+<div class="wrap">
+<nav class="tabs">
+<button class="tabbtn active" data-tab="manual">① 手输牌谱</button>
+<button class="tabbtn" data-tab="current">② 当前牌局生成</button>
+<button class="tabbtn" data-tab="naga">③ 雀魂牌谱抓取</button>
+</nav>
+
+<section class="tab" id="tab-manual"><iframe class="tool" id="ifr-manual" title="手输牌谱"></iframe></section>
+<section class="tab hidden" id="tab-current"><iframe class="tool" id="ifr-current" title="当前牌局"></iframe></section>
+<section class="tab hidden" id="tab-naga">
+
+  <div class="card">
+    <h2>雀魂牌谱 → json6（浏览器扩展 / 用户脚本）</h2>
+    <p class="hint">这是 <b>Tampermonkey / Violentmonkey</b> 用户脚本，需在 <b>雀魂网页</b> 内运行（它 hook 页面 WebSocket 抓牌谱回放），无法在本网页里直接抓。安装后打开任意 4 人牌谱回放，等加载完按 <b>S</b> 即自动下载 json6 并复制 tenhou.net/5 预览链接。</p>
+    <div class="row">
+      <button class="primary" id="naga-copy">复制用户脚本代码</button>
+      <button class="good" id="naga-download">下载 .user.js</button>
+    </div>
+    <details>
+      <summary>安装步骤</summary>
+      <ol>
+        <li>浏览器安装 Tampermonkey 或 Violentmonkey 插件。</li>
+        <li>点上方「复制用户脚本代码」→ 插件里「新建脚本」→ 粘贴 → 保存。</li>
+        <li>或点「下载 .user.js」→ 把文件拖进插件管理页完成安装。</li>
+        <li>打开雀魂 4 人牌谱回放，按 <b>S</b> 即可。</li>
+      </ol>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>粘贴已导出的 json6 预览 / 校验</h2>
+    <p class="hint">把雀魂脚本导出的 .json 内容（或任意 tenhou json6）粘到这里，点「格式化预览」查看结构并生成 tenhou.net/5 链接。</p>
+    <textarea id="naga-input" rows="6" placeholder='粘贴 json6，例如 {"ver":"2.3","log":[...]}'></textarea>
+    <div class="row">
+      <button class="good" id="naga-preview">格式化预览</button>
+      <button id="naga-copylink">复制 tenhou.net/5 链接</button>
+      <span id="naga-status" class="hint"></span>
+    </div>
+    <pre id="naga-output">（等待粘贴）</pre>
+    <div class="hint" style="margin-top:6px">tenhou.net/5 预览链接：</div>
+    <pre id="naga-link"></pre>
+  </div>
+
+</section>
+</div>
+
+<template id="tpl-manual">__MANUAL__</template>
+<template id="tpl-current">__CURRENT__</template>
+
+<script>
+(function(){
+  var NAGA_B64="__NAGA_B64__";
+  function b64decode(s){ var bin=atob(s); var b=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(b); }
+  function setH(ifr){ try{ if(ifr && ifr.contentDocument && ifr.contentDocument.body){ ifr.style.height=(ifr.contentDocument.body.scrollHeight+40)+'px'; } }catch(e){} }
+
+  var loaded={};
+  function loadIframe(name){
+    if(loaded[name]) return;
+    var tpl=document.getElementById('tpl-'+name);
+    var ifr=document.getElementById('ifr-'+name);
+    ifr.srcdoc=tpl.innerHTML;
+    loaded[name]=true;
+  }
+
+  var tabs=document.querySelectorAll('.tabbtn');
+  var sections={manual:document.getElementById('tab-manual'),current:document.getElementById('tab-current'),naga:document.getElementById('tab-naga')};
+  function showTab(name){
+    tabs.forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
+    Object.keys(sections).forEach(function(k){ sections[k].classList.toggle('hidden', k!==name); });
+    if(name==='manual'||name==='current'){
+      loadIframe(name);
+      var ifr=document.getElementById('ifr-'+name);
+      setTimeout(function(){ setH(ifr); }, 400);
+      setTimeout(function(){ setH(ifr); }, 1200);
+    }
+  }
+  tabs.forEach(function(b){ b.addEventListener('click', function(){ showTab(b.dataset.tab); }); });
+
+  document.getElementById('naga-copy').addEventListener('click', function(){
+    var code=b64decode(NAGA_B64);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(function(){ alert('已复制用户脚本代码，去 Tampermonkey「新建脚本」粘贴即可。'); }, function(){ prompt('复制失败，请手动复制：', code); });
+    } else { prompt('复制失败，请手动复制：', code); }
+  });
+  document.getElementById('naga-download').addEventListener('click', function(){
+    var code=b64decode(NAGA_B64);
+    var blob=new Blob([code],{type:'text/plain;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='NAGA_ANALYZE-0.2.0.user.js'; a.click();
+  });
+  document.getElementById('naga-preview').addEventListener('click', function(){
+    var txt=document.getElementById('naga-input').value.trim();
+    var out=document.getElementById('naga-output'), link=document.getElementById('naga-link'), st=document.getElementById('naga-status');
+    if(!txt){ out.textContent='（空）'; link.textContent=''; st.textContent=''; return; }
+    try{
+      var j=JSON.parse(txt);
+      out.textContent=JSON.stringify(j,null,2);
+      link.textContent='https://tenhou.net/5/#json='+encodeURIComponent(JSON.stringify(j));
+      st.textContent='解析成功：'+(j.log?j.log.length+' 局':'(无 log)');
+    }catch(e){ out.textContent='解析失败：'+e.message; link.textContent=''; st.textContent=''; }
+  });
+  document.getElementById('naga-copylink').addEventListener('click', function(){
+    var link=document.getElementById('naga-link').textContent;
+    if(!link) return;
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function(){ document.getElementById('naga-status').textContent='已复制链接'; });
+    else prompt('复制链接：', link);
+  });
+
+  showTab('manual');
+})();
+</script>
+</body>
+</html>

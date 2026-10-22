@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>当前牌局 → json6 生成器</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e2e6ea; --ink:#1f2733; --muted:#6b7684;
+    --accent:#2f6df0; --accent2:#0a8f5b; --danger:#d24b4b; --warn:#b8860b;
+    --man:#2b6cb0; --pin:#2f9e44; --sou:#e8590c; --hon:#7b5cd6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:16px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 20px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+  label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=text]{min-width:120px}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  button.ghost{background:transparent}
+  button.danger{color:var(--danger);border-color:#f0caca}
+  .names{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .names label{min-width:0}
+  .names input{width:100%}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .palette{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+  .tk{width:30px;height:38px;border-radius:6px;border:1px solid #cfd6dd;background:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+  .tk.m{color:var(--man)} .tk.p{color:var(--pin)} .tk.s{color:var(--sou)} .tk.z{color:var(--hon)}
+  .tk.aka{background:#ffe3e3;border-color:#ffb3b3}
+  .big{width:320px}
+  pre{padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:360px;font:12px/1.45 ui-monospace,Consolas,monospace}
+  code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}.names{grid-template-columns:repeat(2,1fr)}}
+  .seat-tag{display:inline-block;background:#eef3fb;color:#2f6df0;border-radius:6px;padding:1px 7px;font-size:12px;margin-right:6px}
+  .warnbox{background:#fff7e6;border:1px solid #ffe1a8;color:#8a5a00;padding:8px 10px;border-radius:8px;font-size:12px;margin-top:8px}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>当前牌局 → json6 生成器</h1>
+  <p>输入你自己的手牌、牌河、巡目与分数，自动生成 tenhou json6 当前牌局（其他三家手牌随机、切牌仅用你手上没有的字牌）。可下载 .json 交给 mortal 跑分。</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ① 对局信息 -->
+  <div class="card">
+    <h2>① 对局信息</h2>
+    <div class="row">
+      <label>标题<input id="meta_title" type="text" value="当前牌局" /></label>
+      <label>规则
+        <select id="meta_mode">
+          <option value="south">南喰（半庄）</option>
+          <option value="east">东喰（东风）</option>
+        </select>
+      </label>
+      <label>赤牌（红5）
+        <select id="meta_aka">
+          <option value="1">有（3枚）</option>
+          <option value="0">无</option>
+        </select>
+      </label>
+      <label>我的座位
+        <select id="my_seat">
+          <option value="0">东 (Seat 0)</option>
+          <option value="1">南 (Seat 1)</option>
+          <option value="2">西 (Seat 2)</option>
+          <option value="3">北 (Seat 3)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>局
+        <select id="kyoku">
+          <option value="0">东1</option><option value="1">东2</option><option value="2">东3</option><option value="3">东4</option>
+          <option value="4">南1</option><option value="5">南2</option><option value="6">南3</option><option value="7">南4</option>
+        </select>
+      </label>
+      <label>本场<input id="honba" type="number" min="0" value="0" style="width:60px"/></label>
+      <label>立直棒<input id="riichi_sticks" type="number" min="0" value="0" style="width:60px"/></label>
+      <label>宝牌指示牌（可多个，空格分隔）<input id="dora" type="text" value="1m" class="tilein big" placeholder="如 1m 5p"/></label>
+    </div>
+    <div class="row">
+      <label>四家点数（逗号分隔，顺序 东/南/西/北）<input id="scores" type="text" value="25000,25000,25000,25000" class="big"/></label>
+    </div>
+    <div class="names">
+      <label>东家 (Seat 0)<input id="name0" type="text" value="玩家1"/></label>
+      <label>南家 (Seat 1)<input id="name1" type="text" value="玩家2"/></label>
+      <label>西家 (Seat 2)<input id="name2" type="text" value="玩家3"/></label>
+      <label>北家 (Seat 3)<input id="name3" type="text" value="玩家4"/></label>
+    </div>
+  </div>
+
+  <!-- ② 我的手牌与牌河 -->
+  <div class="card">
+    <h2>② 我的手牌与牌河（核心输入）</h2>
+    <div class="row">
+      <label>我的手牌（14 张，<b>最后一张视为刚摸到的牌</b>）<input id="my_hand" type="text" value="123456789m12345p" class="tilein big" placeholder="如 123456789m12345p"/></label>
+      <label>刚摸到的牌（可选，覆盖“最后一张”）<input id="my_draw" type="text" value="" class="tilein" placeholder="如 5p"/></label>
+    </div>
+    <div class="row">
+      <label>我的牌河（<b>本巡之前</b>已打出的牌，逗号/空格分隔）<input id="my_river" type="text" value="1s 2s 5z 6z 7z" class="tilein big" placeholder="如 1s 2s 5z 6z 7z"/></label>
+      <label>我打出的牌（<b>本巡刚打出</b>的那张，须在我手牌中）<input id="my_discard" type="text" value="" class="tilein" placeholder="如 5p"/></label>
+      <label>巡目（其他家也打出的张数，默认=本巡前牌河张数）<input id="turn" type="number" min="0" value="5" style="width:70px"/></label>
+      <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="my_riichi"/>我已立直</label>
+    </div>
+    <div class="hint">记法：<code>123456789m12345p</code> 表示 1-9 万 + 12345 筒；<code>0m/0p/0s</code> 为赤5；字牌 <code>1z</code>东 <code>2z</code>南 <code>3z</code>西 <code>4z</code>北 <code>5z</code>白 <code>6z</code>发 <code>7z</code>中。</div>
+    <div class="hint">生成规则：其他三家手牌随机；他们的切牌<b>只从你手上没有的字牌</b>里选（赤5 不会被选作无关牌，字牌耗尽时退化为其他你手上没有的牌，并提示）。</div>
+    <div class="palette" id="palette"></div>
+    <div class="hint">点上方某个输入框使其高亮，再点牌即可把牌“打”进去；也可直接手打记法。</div>
+  </div>
+
+  <!-- ③ 生成 / 导出 -->
+  <div class="card">
+    <h2>③ 生成 / 导出</h2>
+    <div class="row">
+      <button class="primary" id="generate">生成 json6</button>
+      <button class="good" id="download">下载 json6 (.json)</button>
+      <button id="copy5">复制 tenhou.net/5 预览链接</button>
+      <button class="ghost" id="copy6">复制 tenhou.net/6 链接</button>
+      <button id="copyjson" onclick="copyJson()">复制 json6 文本</button>
+      <button class="primary" id="open6">在 tenhou.net/6 打开（直接加载牌谱）</button>
+      <button id="openmortal">在 Mortal 分析（自动复制）</button>
+      <button class="ghost" id="reroll">其他家重新随机</button>
+      <button class="ghost" id="load_example">载入示例</button>
+      <span id="export_status" class="hint"></span>
+    </div>
+    <div id="warnbox"></div>
+    <div class="grid2">
+      <div>
+        <div class="hint" style="margin-bottom:4px">完整 json6（点“生成”后更新，点“下载”保存为 .json 交给 mortal）：</div>
+        <pre id="json_preview">（请先点“生成 json6”）</pre>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:4px">tenhou.net/5 单局预览链接：</div>
+        <pre id="link_preview"></pre>
+        <div class="hint" style="margin-top:6px">说明：本工具生成的牌局以「流局」作为终止行，仅为让 mortal / tenhou 能正常解析这一“当前牌局”；分析的是你 14 张手牌的切牌建议。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作说明 -->
+  <div class="card">
+    <details open>
+      <summary>使用说明 / 注意事项（点此折叠）</summary>
+      <div style="font-size:13px;line-height:1.7">
+        <ol>
+          <li><b>填对局信息</b>：标题、规则、赤牌、你的座位、局数/本场/立直棒、宝牌指示牌、四家点数与昵称。</li>
+          <li><b>填你的手牌</b>：14 张，最后一张默认视为“刚摸到的牌”（要切牌前的那张）。若想指定摸入牌，填到“刚摸到的牌”框。</li>
+          <li><b>填你的牌河 + 打出的牌</b>：牌河填<b>本巡之前</b>已打出的所有牌；“我打出的牌”填<b>本巡刚打出</b>的那一张（必须是你 14 张手牌里的一张）。两者合起来就是你完整的牌河。这样可保证每一巡“摸+打”成对、mortal 能正常解析当前这一巡。</li>
+          <li><b>巡目</b>：其他三家各自打出的张数，默认等于你的“本巡前牌河”张数（保证四家手数一致）；若手动改大，其他家会多打几张。</li>
+          <li>点 <b>生成 json6</b>：自动随机出其他三家手牌，并把他们的切牌限制在你手上没有的字牌；右下角给出 tenhou.net/5 预览链接。</li>
+          <li>点 <b>下载 json6</b> 保存 <code>.json</code>（mortal 直接吃）；<b>其他家重新随机</b> 可换一批随机分布。</li>
+        </ol>
+        <p class="hint"><b>关于“无关牌”</b>：字牌共 7 种 ×4 = 28 张。若你持有其中若干，其他家只从“你没持有的字牌”里切；字牌用尽后会退化为其他你手上没有的牌（界面会黄条提示）。这是为了生成一个“尽量不干扰你手牌”的干净牌局用于跑分。<b>该牌局是合成的，仅供切牌/向听参考，不能当作真实对局复盘。</b></p>
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============ 牌张编码（与 tenhou / NAGA 一致，已验证） ============ */
+const TYPE = { m:0, p:1, s:2, z:3 };
+function tObj(text){ return { num:parseInt(text[0],10), t:TYPE[text[1].toLowerCase()] }; }
+function tEnc(x){ return x.num!==0 ? 10*(x.t+1)+x.num : 50+(x.t+1); }
+const TSUMOGIRI = 60;
+
+// 把记法字符串解析为 tenhou 数字数组。支持 "123456789m"、"0m"(赤5)、多组空格/逗号分隔
+function parseTiles(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").replace(/,/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase(), t=TYPE[suit];
+    for(const dch of tok.slice(0,-1)){
+      const num=parseInt(dch,10);
+      out.push( (num===0 && t!==3) ? 50+(t+1) : 10*(t+1)+num ); // 赤5 -> 51/52/53
+    }
+  });
+  return out;
+}
+const SEAT_NAME = ["东","南","西","北"];
+
+/* ============ 状态 ============ */
+let lastEntry=null;     // 最近一次生成的 entry
+let lastMeta=null;       // 最近一次生成的顶层字段
+let lastUsedFallback=false;
+let lastBagShort=false;
+
+/* ============ 生成逻辑 ============ */
+// 构造一个 136 张的牌堆计数表（34 种，每种 4 张），并按“我的手牌 + 牌河 + 宝牌指示”扣减
+function buildBag(myCodes, myRiver, doraCodes){
+  const bag={};
+  for(let c=11;c<=19;c++) bag[c]=4;
+  for(let c=21;c<=29;c++) bag[c]=4;
+  for(let c=31;c<=39;c++) bag[c]=4;
+  for(let c=41;c<=47;c++) bag[c]=4;
+  const dec=c=>{ if(bag[c]>0) bag[c]--; };
+  myCodes.forEach(dec); myRiver.forEach(dec); doraCodes.forEach(dec);
+  return bag;
+}
+// 从 bag 中无放回抽取 n 张（构成一副手牌），返回数组
+function sampleTiles(bag,n){
+  const deck=[];
+  for(const c in bag){ for(let i=0;i<bag[c];i++) deck.push(parseInt(c,10)); }
+  // Fisher-Yates
+  for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+  return deck.slice(0,n);
+}
+function pickFrom(arr){ return arr.length?arr[Math.floor(Math.random()*arr.length)]:null; }
+
+// 生成一家对手：随机手牌 + 巡目张切牌（仅“我手上没有的字牌”，优先字牌）
+function genOpponent(k, bag, myHonors, myCodesSet){
+  const haipai=sampleTiles(bag,13);
+  haipai.forEach(c=>{ if(bag[c]>0) bag[c]--; });
+  // 初始字牌池：字牌(41-47) 且 我手上没有 且 仍有剩余
+  let pool=[];
+  for(let c=41;c<=47;c++) if(!myHonors.has(c) && bag[c]>0) pool.push(c);
+  const draws=[], discards=[];
+  let fallback=false;
+  for(let i=0;i<k;i++){
+    let t=pickFrom(pool);
+    if(t===null || bag[t]<=0){
+      // 退化：优先其他“我手上没有的牌”，再退化为任意剩余牌
+      const cand=[];
+      for(const c in bag) if(bag[c]>0 && !myCodesSet.has(parseInt(c,10))) cand.push(parseInt(c,10));
+      t=pickFrom(cand);
+      if(t===null){ for(const c in bag) if(bag[c]>0){ t=parseInt(c,10); break; } }
+      fallback=true;
+    }
+    if(t===null) break;
+    if(bag[t]>0) bag[t]--;
+    if(bag[t]<=0) pool=pool.filter(x=>x!==t);
+    draws.push(t); discards.push(t); // 摸后立切（tsumogiri）风格，干净无干扰
+  }
+  return { haipai, draws, discards, fallback };
+}
+
+function buildEntryFromUI(){
+  const mySeat=+document.getElementById("my_seat").value;
+  const kyoku=+document.getElementById("kyoku").value;
+  const honba=+document.getElementById("honba").value||0;
+  const riichiSticks=+document.getElementById("riichi_sticks").value||0;
+  const doraCodes=parseTiles(document.getElementById("dora").value);
+  const scoresStr=document.getElementById("scores").value.split(",").map(s=>parseInt(s,10));
+  const scores=(scoresStr.length===4 && scoresStr.every(n=>!isNaN(n)))?scoresStr:[25000,25000,25000,25000];
+
+  const handRaw=document.getElementById("my_hand").value;
+  const drawRaw=document.getElementById("my_draw").value.trim();
+  const riverRaw=document.getElementById("my_river").value;
+  const discardRaw=document.getElementById("my_discard").value.trim();
+  const myRiichi=document.getElementById("my_riichi").checked;
+  let turn=+document.getElementById("turn").value; if(isNaN(turn)||turn<0) turn=0;
+
+  const myCodes=parseTiles(handRaw);
+  if(myCodes.length!==14) throw "我的手牌必须是 14 张（当前 "+myCodes.length+" 张）";
+
+  // 本巡打出的牌：必须恰好 1 张，且在我 14 张手牌之内
+  const discTiles=parseTiles(discardRaw);
+  if(discTiles.length!==1) throw "“我打出的牌”必须恰好填 1 张（如 5p）";
+  const discardCode=discTiles[0];
+  if(!myCodes.includes(discardCode)) throw "“我打出的牌”不在你的手牌里，请确认它是你 14 张手牌中的一张";
+
+  // 拆分 摸入牌 / 配牌13
+  let drawn, haipai13;
+  if(drawRaw){
+    const d=parseTiles(drawRaw)[0];
+    const idx=myCodes.lastIndexOf(d);
+    if(idx<0) throw "“刚摸到的牌”不在手牌里，请检查";
+    haipai13=myCodes.filter((_,i)=>i!==idx);
+    drawn=d;
+  } else {
+    haipai13=myCodes.slice(0,13);
+    drawn=myCodes[13];
+  }
+  const myRiver=parseTiles(riverRaw);
+
+  if(turn < myRiver.length) turn=myRiver.length; // 至少与我的牌河一致
+
+  // 牌堆（扣掉我的手牌+牌河+宝牌）
+  const bag=buildBag(myCodes, myRiver, doraCodes);
+  const myHonors=new Set(myCodes.filter(c=>c>=41&&c<=47));
+  const myCodesSet=new Set(myCodes);
+  const myRiverSet=new Set(myRiver);
+
+  // 三家对手
+  const oppBySeat=[null,null,null,null];
+  let anyFallback=false, bagShort=false;
+  for(let seat=0;seat<4;seat++){
+    if(seat===mySeat) continue;
+    const o=genOpponent(turn, bag, myHonors, myCodesSet);
+    if(o.fallback) anyFallback=true;
+    if(o.draws.length<turn) bagShort=true;
+    oppBySeat[seat]=o;
+  }
+
+  // 组装 entry（tenhou 每家 [配牌, 摸牌, 打牌] 交错）
+  const entry=[ [kyoku, honba, riichiSticks], scores.slice(), doraCodes, [] /*uras*/ ];
+  for(let seat=0;seat<4;seat++){
+    if(seat===mySeat){
+      const draws=[...myRiver, drawn];            // 历史切牌(又被摸出) + 当前摸入
+      const discards=[...myRiver, discardCode];   // 历史切牌 + 本巡刚打出的牌
+      if(myRiichi && discards.length) discards[discards.length-1]="r"+discards[discards.length-1];
+      entry.push(haipai13, draws, discards);
+    } else {
+      const o=oppBySeat[seat];
+      entry.push(o.haipai, o.draws, o.discards);
+    }
+  }
+  // 终止行：流局（仅为让 mortal/tenhou 正常解析当前牌局）
+  entry.push(["流局",[0,0,0,0]]);
+
+  lastUsedFallback=anyFallback; lastBagShort=bagShort;
+  return { entry, scores, mySeat, kyoku };
+}
+
+function buildJson(){
+  if(!lastEntry) throw "请先点“生成 json6”";
+  const mode = document.getElementById("meta_mode").value==="south"?2:1;
+  const aka = document.getElementById("meta_aka").value==="1";
+  const disp = (document.getElementById("meta_mode").value==="south"?"南":"东")+"喰"+(aka?"赤":"");
+  const names=[0,1,2,3].map(i=>document.getElementById("name"+i).value);
+  const title=document.getElementById("meta_title").value||"当前牌局";
+  const scores=lastMeta.scores;
+  return {
+    ver:"2.3",
+    ref:"current-"+Date.now(),
+    ratingc:"PF4",
+    rule:{ disp, aka53:aka?1:0, aka52:aka?1:0, aka51:aka?1:0 },
+    lobby:0,
+    dan:["","","",""],
+    rate:[0,0,0,0],
+    sx:["C","C","C","C"],
+    name:names.slice(0,4),
+    sc: scores.length===4 ? [0,scores[0]/1000,0,scores[1]/1000,0,scores[2]/1000,0,scores[3]/1000] : [0,0,0,0,0,0,0,0],
+    title:[title,""],
+    log:[lastEntry]
+  };
+}
+
+function renderPreview(){
+  const json=buildJson();
+  document.getElementById("json_preview").textContent=JSON.stringify(json,null,2);
+  document.getElementById("link_preview").textContent="https://tenhou.net/5/#json="+encodeURIComponent(JSON.stringify(json));
+}
+
+/* ============ 事件 ============ */
+function doGenerate(){
+  const warn=document.getElementById("warnbox");
+  warn.innerHTML="";
+  try{
+    const {entry,scores,mySeat,kyoku}=buildEntryFromUI();
+    lastEntry=entry; lastMeta={scores,mySeat,kyoku};
+    renderPreview();
+    document.getElementById("export_status").textContent="已生成（"+SEAT_NAME[mySeat]+"家视角，巡目 "+document.getElementById("turn").value+"）";
+    if(lastUsedFallback||lastBagShort){
+      warn.innerHTML='<div class="warnbox">⚠️ 字牌不足：其他家切牌已退化为“你手上没有的其他牌”（牌局为合成数据，仅供切牌/向听参考，非真实复盘）。</div>';
+    }
+  }catch(err){
+    warn.innerHTML='<div class="warnbox">生成失败：'+err+'</div>';
+  }
+}
+function downloadJson(){
+  try{ const json=buildJson();
+    const blob=new Blob([JSON.stringify(json,null,2)],{type:"text/plain;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    const date=new Date().toISOString().slice(0,10);
+    a.download=`current_${date}_${json.rule.disp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    document.getElementById("export_status").textContent="已下载 "+a.download;
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">下载失败：'+err+'</div>'; }
+}
+function copyLink(which){
+  const json=buildJson();
+  const base=which==="6"?"https://tenhou.net/6/":"https://tenhou.net/5/";
+  const link=base+"#json="+encodeURIComponent(JSON.stringify(json));
+  navigator.clipboard.writeText(link).then(()=>{
+    document.getElementById("export_status").textContent=`已复制 tenhou.net/${which} 链接`;
+  },()=>{ document.getElementById("export_status").textContent="复制失败，链接见右侧预览框"; });
+}
+function copyJson(){
+  try{
+    const json=buildJson();
+    navigator.clipboard.writeText(JSON.stringify(json,null,2)).then(()=>{
+      document.getElementById("export_status").textContent="已复制完整 json6 文本（可直接粘贴给 mortal）";
+    },()=>{
+      const ta=document.getElementById("json_preview"); ta.focus(); try{ document.execCommand("selectAll"); }catch(e){}
+      document.getElementById("export_status").textContent="复制失败，请手动从右侧预览框全选复制";
+    });
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">复制失败：'+err+'</div>'; }
+}
+function openTenhou6(){
+  try{
+    const json=buildJson();
+    const link="https://tenhou.net/6/#json="+encodeURIComponent(JSON.stringify(json));
+    window.open(link,"_blank");
+    document.getElementById("export_status").textContent="已在 tenhou.net/6 打开并加载牌谱（可逐步查看/切牌）";
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">打开失败：'+err+'</div>'; }
+}
+function openMortal(){
+  try{
+    const json=buildJson();
+    const pid=lastMeta?lastMeta.mySeat:0;
+    const txt=JSON.stringify(json,null,2);
+    const go=()=>{
+      window.open("https://mjai.ekyu.moe/zh-cn.html","_blank");
+      document.getElementById("export_status").textContent="已打开 Mortal 页面并复制牌谱（玩家ID="+pid+"）。请在页面切到「自定义 (tenhou.net/6 JSON)」，在「玩家 ID」填 "+pid+"，Ctrl+V 粘贴后点加载。";
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(go,go);
+    else go();
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">打开失败：'+err+'</div>'; }
+}
+function loadExample(){
+  document.getElementById("my_seat").value="0";
+  document.getElementById("kyoku").value="0";
+  document.getElementById("honba").value="0";
+  document.getElementById("riichi_sticks").value="0";
+  document.getElementById("dora").value="1m";
+  document.getElementById("scores").value="26000,24000,25000,25000";
+  document.getElementById("my_hand").value="123456789m12345p";
+  document.getElementById("my_draw").value="5p";
+  document.getElementById("my_river").value="1s 2s 5z 6z 7z";
+  document.getElementById("my_discard").value="1p";
+  document.getElementById("turn").value="5";
+  document.getElementById("my_riichi").checked=false;
+  doGenerate();
+}
+
+/* ============ 牌张面板 ============ */
+let lastInput=null;
+function buildPalette(){
+  const pal=document.getElementById("palette");
+  const defs=[];
+  for(const s of ["m","p","s"]) for(let n=1;n<=9;n++) defs.push({t:s,n});
+  defs.push({t:"z",n:1},{t:"z",n:2},{t:"z",n:3},{t:"z",n:4},{t:"z",n:5},{t:"z",n:6},{t:"z",n:7});
+  defs.push({t:"m",n:0},{t:"p",n:0},{t:"s",n:0});
+  defs.forEach(d=>{
+    const b=document.createElement("div");
+    b.className="tk "+d.t+(d.n===0?" aka":"");
+    b.textContent = d.n===0 ? "0"+d.t+"*" : d.n+d.t;
+    b.title = d.n===0?("赤5"+({m:"万",p:"筒",s:"索"}[d.t])):(d.n+({m:"万",p:"筒",s:"索",z:""}[d.t])+(d.t==="z"?["东","南","西","北","白","发","中"][d.n-1]:""));
+    b.addEventListener("click",()=>{
+      const tok=d.n+d.t;
+      if(lastInput){ const s=lastInput.value; lastInput.value=(s&&!/\s$/.test(s)?s+" ":"")+tok; lastInput.dispatchEvent(new Event("input",{bubbles:true})); }
+    });
+    pal.appendChild(b);
+  });
+}
+document.addEventListener("focusin",e=>{ if(e.target.classList&&e.target.classList.contains("tilein")) lastInput=e.target; });
+
+function init(){
+  buildPalette();
+  document.getElementById("generate").addEventListener("click",doGenerate);
+  document.getElementById("download").addEventListener("click",downloadJson);
+  document.getElementById("copy5").addEventListener("click",()=>copyLink("5"));
+  document.getElementById("copy6").addEventListener("click",()=>copyLink("6"));
+  document.getElementById("open6").addEventListener("click",openTenhou6);
+  document.getElementById("openmortal").addEventListener("click",openMortal);
+  document.getElementById("reroll").addEventListener("click",()=>{ if(lastEntry) doGenerate(); });
+  document.getElementById("load_example").addEventListener("click",loadExample);
+}
+if(typeof document!=="undefined") init();
+</script>
+</body>
+</html>

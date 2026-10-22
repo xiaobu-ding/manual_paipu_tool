@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>麻将牌谱工具箱 · json6 生成</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--line:#e2e6ea;--ink:#1f2733;--muted:#6b7684;--accent:#2f6df0;--accent2:#0a8f5b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+header.top{padding:14px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+header.top h1{margin:0;font-size:18px}
+header.top p{margin:4px 0 0;opacity:.9;font-size:13px}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 16px 80px}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tabbtn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 16px;border-radius:8px;font:inherit;font-size:14px}
+.tabbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+iframe.tool{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;min-height:2600px;display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+input,textarea,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+textarea{width:100%}
+pre{white-space:pre-wrap;word-break:break-all;padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:320px;font:12px/1.45 ui-monospace,Consolas,monospace}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header class="top">
+<h1>麻将牌谱工具箱 · json6 生成</h1>
+<p>三个工具集成到一个网页：① 手输牌谱转 json6 · ② 当前牌局生成器 · ③ 雀魂牌谱抓取。生成的 json6 可直接交给 mortal / akochan 跑分，或粘到 tenhou.net/5 预览。</p>
+</header>
+<div class="wrap">
+<nav class="tabs">
+<button class="tabbtn active" data-tab="manual">① 手输牌谱</button>
+<button class="tabbtn" data-tab="current">② 当前牌局生成</button>
+<button class="tabbtn" data-tab="naga">③ 雀魂牌谱抓取</button>
+</nav>
+
+<section class="tab" id="tab-manual"><iframe class="tool" id="ifr-manual" title="手输牌谱"></iframe></section>
+<section class="tab hidden" id="tab-current"><iframe class="tool" id="ifr-current" title="当前牌局"></iframe></section>
+<section class="tab hidden" id="tab-naga">
+
+  <div class="card">
+    <h2>雀魂牌谱 → json6（浏览器扩展 / 用户脚本）</h2>
+    <p class="hint">这是 <b>Tampermonkey / Violentmonkey</b> 用户脚本，需在 <b>雀魂网页</b> 内运行（它 hook 页面 WebSocket 抓牌谱回放），无法在本网页里直接抓。安装后打开任意 4 人牌谱回放，等加载完按 <b>S</b> 即自动下载 json6 并复制 tenhou.net/5 预览链接。</p>
+    <div class="row">
+      <button class="primary" id="naga-copy">复制用户脚本代码</button>
+      <button class="good" id="naga-download">下载 .user.js</button>
+    </div>
+    <details>
+      <summary>安装步骤</summary>
+      <ol>
+        <li>浏览器安装 Tampermonkey 或 Violentmonkey 插件。</li>
+        <li>点上方「复制用户脚本代码」→ 插件里「新建脚本」→ 粘贴 → 保存。</li>
+        <li>或点「下载 .user.js」→ 把文件拖进插件管理页完成安装。</li>
+        <li>打开雀魂 4 人牌谱回放，按 <b>S</b> 即可。</li>
+      </ol>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>粘贴已导出的 json6 预览 / 校验</h2>
+    <p class="hint">把雀魂脚本导出的 .json 内容（或任意 tenhou json6）粘到这里，点「格式化预览」查看结构并生成 tenhou.net/5 链接。</p>
+    <textarea id="naga-input" rows="6" placeholder='粘贴 json6，例如 {"ver":"2.3","log":[...]}'></textarea>
+    <div class="row">
+      <button class="good" id="naga-preview">格式化预览</button>
+      <button id="naga-copylink">复制 tenhou.net/5 链接</button>
+      <span id="naga-status" class="hint"></span>
+    </div>
+    <pre id="naga-output">（等待粘贴）</pre>
+    <div class="hint" style="margin-top:6px">tenhou.net/5 预览链接：</div>
+    <pre id="naga-link"></pre>
+  </div>
+
+</section>
+</div>
+
+<template id="tpl-manual"><!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>手输牌谱 → json6 转换工具</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e2e6ea; --ink:#1f2733; --muted:#6b7684;
+    --accent:#2f6df0; --accent2:#0a8f5b; --danger:#d24b4b; --man:#2b6cb0; --pin:#2f9e44; --sou:#e8590c; --hon:#7b5cd6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:16px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 20px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+  label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=text]{min-width:120px}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  button.ghost{background:transparent}
+  button.danger{color:var(--danger);border-color:#f0caca}
+  .names{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .names label{min-width:0}
+  .names input{width:100%}
+  .round{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:#fcfcfd}
+  .round>.rhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+  .players{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(max-width:760px){.players{grid-template-columns:1fr}}
+  .player{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+  .player h4{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .acts{list-style:none;margin:6px 0 0;padding:0;font-size:12px;color:var(--muted)}
+  .acts li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dotted #eee}
+  .acts .del{cursor:pointer;color:var(--danger)}
+  .tilein{width:180px}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .palette{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+  .tk{width:30px;height:38px;border-radius:6px;border:1px solid #cfd6dd;background:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+  .tk.m{color:var(--man)} .tk.p{color:var(--pin)} .tk.s{color:var(--sou)} .tk.z{color:var(--hon)}
+  .tk.aka{background:#ffe3e3;border-color:#ffb3b3}
+  .tk.sel{outline:2px solid var(--accent)}
+  pre{padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:340px;font:12px/1.45 ui-monospace,Consolas,monospace}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+  table.manual{border-collapse:collapse;width:100%;font-size:13px}
+  table.manual th,table.manual td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  table.manual th{background:#eef3fb}
+  code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .pill{display:inline-block;background:#eef3fb;color:#2f6df0;border-radius:999px;padding:1px 8px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>手输牌谱 → json6 转换工具</h1>
+  <p>手动录入雀魂 / 天凤牌谱，导出 tenhou json6（<code style="color:#fff">.json</code>）供 mortal / akochan 跑分；并可生成 tenhou.net/5 预览链接。无需联网。</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. 对局信息 -->
+  <div class="card">
+    <h2>① 对局信息</h2>
+    <div class="row">
+      <label>标题<input id="meta_title" type="text" value="手动牌谱" /></label>
+      <label>规则
+        <select id="meta_mode">
+          <option value="south">南喰（半庄）</option>
+          <option value="east">东喰（东风）</option>
+        </select>
+      </label>
+      <label>赤牌（红5）
+        <select id="meta_aka">
+          <option value="1">有（3枚）</option>
+          <option value="0">无</option>
+        </select>
+      </label>
+      <label>起始点数（可选，逗号分隔4家）
+        <input id="meta_scores" type="text" placeholder="25000,25000,25000,25000" />
+      </label>
+    </div>
+    <div class="names">
+      <label>东家 (Seat 0)<input id="name0" type="text" value="玩家1" /></label>
+      <label>南家 (Seat 1)<input id="name1" type="text" value="玩家2" /></label>
+      <label>西家 (Seat 2)<input id="name2" type="text" value="玩家3" /></label>
+      <label>北家 (Seat 3)<input id="name3" type="text" value="玩家4" /></label>
+    </div>
+    <div class="hint">规则显示将自动生成为「南喰赤」/「东喰赤」等，与 tenhou 记法一致。</div>
+  </div>
+
+  <!-- 2. 牌张面板 -->
+  <div class="card">
+    <h2>② 牌张输入面板</h2>
+    <div class="hint">先点下方某输入框使其获得焦点（边框变蓝），再点牌即可把牌“打”进该框。也可以直接手打记法，例如 <code>123456789m12345p</code>、<code>0m</code>（赤5万）。</div>
+    <div class="palette" id="palette"></div>
+    <div class="hint">色：<span style="color:var(--man)">万子(m)</span> · <span style="color:var(--pin)">筒子(p)</span> · <span style="color:var(--sou)">索子(s)</span> · <span style="color:var(--hon)">字牌(z：1东2南3西4北5白6发7中)</span> · 红底=赤5（0m/0p/0s）。</div>
+  </div>
+
+  <!-- 3. 对局（局）列表 -->
+  <div class="card">
+    <h2>③ 对局（每一局）</h2>
+    <div id="rounds"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="primary" id="add_round">+ 添加一局</button>
+      <button class="ghost" id="load_example">载入示例（东1 庄家立直自摸）</button>
+      <button class="ghost danger" id="clear_all">清空全部</button>
+    </div>
+  </div>
+
+  <!-- 4. 导出 -->
+  <div class="card">
+    <h2>④ 导出 / 预览</h2>
+    <div class="row">
+      <label style="flex-direction:row;align-items:center;gap:6px">分析视角（玩家ID，0=东家）<input id="analyze_seat" type="number" min="0" max="3" value="0" style="width:60px"/></label>
+    </div>
+    <div class="row">
+      <button class="good" id="download">下载 json6 (.json)</button>
+      <button id="copy5">复制 tenhou.net/5 预览链接</button>
+      <button class="ghost" id="copy6">复制 tenhou.net/6 链接</button>
+      <button id="copyjson" onclick="copyJson()">复制 json6 文本</button>
+      <button class="primary" id="open6" onclick="openTenhou6()">在 tenhou.net/6 打开（直接加载牌谱）</button>
+      <button id="openmortal" onclick="openMortal()">在 Mortal 分析（自动复制）</button>
+      <span id="export_status" class="hint"></span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="hint" style="margin-bottom:4px">完整 json6（点击「下载」保存为 .json 后交给 mortal）：</div>
+        <pre id="json_preview">（请先录入一局）</pre>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:4px">tenhou.net/5 单局预览链接（点按钮复制，粘到浏览器查看）：</div>
+        <pre id="link_preview"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作手册 -->
+  <div class="card">
+    <details open>
+      <summary>操作手册 / 记法说明（点此折叠）</summary>
+      <div id="manual_body"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============ 牌张编码（与 tenhou / NAGA 一致，已验证） ============ */
+const TYPE = { m:0, p:1, s:2, z:3 };
+function tObj(text){ return { num:parseInt(text[0],10), t:TYPE[text[1].toLowerCase()] }; }
+function tEnc(x){ return x.num!==0 ? 10*(x.t+1)+x.num : 50+(x.t+1); }
+function tDeaka(x){ return x.num===0 && x.t!==3 ? {num:5,t:x.t} : x; }
+const TSUMOGIRI = 60;
+
+// 把记法字符串解析为 tenhou 数字数组。
+// 支持标准 tenhou 写法：同花色用数字串 + 一个花色字母，如 "123456789m"=1-9万，
+// "111m"=三张1万，"0m"=赤5万。多组用空格/逗号分隔。
+//   "0m123p 55z" -> [51,11,12,13,21,22,45,45]
+function parseTiles(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase(), t=TYPE[suit];
+    for(const dch of tok.slice(0,-1)){
+      const num=parseInt(dch,10);
+      out.push( (num===0 && t!==3) ? 50+(t+1) : 10*(t+1)+num ); // 赤5 -> 51/52/53
+    }
+  });
+  return out;
+}
+// 解析为 tile 对象数组（保持顺序），供吃碰杠构造使用
+function tilesToObjs(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase();
+    for(const dch of tok.slice(0,-1)) out.push(tObj(dch+suit));
+  });
+  return out;
+}
+function rel(seat, feeder){ return (seat - feeder + 3) % 4; } // 0上家 1对家 2下家
+
+function encChi(s){ return "c"+tEnc(s.called)+tEnc(s.a)+tEnc(s.b); }
+function encPon(s){ const t=[String(tEnc(s.a)),String(tEnc(s.b))]; t.splice(s.fr,0,"p"+tEnc(s.called)); return t.join(""); }
+function encDaiminkan(s){ let pos=s.fr===2?3:s.fr; const t=[String(tEnc(s.a)),String(tEnc(s.b)),String(tEnc(s.c))]; t.splice(pos,0,"m"+tEnc(s.called)); return t.join(""); }
+function encAnkan(s){ const t=tEnc(s.tile); if(s.tile.num===0||(s.tile.num===5&&s.tile.t!==3)) return ""+tEnc({num:0,t:s.tile.t})+t+t+"a"+t; return ""+t+t+t+"a"+t; }
+function encKakan(s){ const t=[String(tEnc(s.a)),String(tEnc(s.b)),String(tEnc(s.c))]; t.splice(s.fr,0,"k"+tEnc(s.added)); return t.join(""); }
+
+const SEAT_NAME = ["东","南","西","北"];
+const FR_LABEL = ["上家","对家","下家"]; // fr 0/1/2
+
+/* ============ 状态 ============ */
+let state = {
+  meta:{ title:"手动牌谱", mode:"south", aka:1, scores:[],
+         names:["玩家1","玩家2","玩家3","玩家4"] },
+  rounds:[]
+};
+
+function newRound(){
+  return {
+    kyoku:0, honba:0, riichi:0, dora:"", ura:"",
+    players:[ {haipai:"",acts:[]}, {haipai:"",acts:[]}, {haipai:"",acts:[]}, {haipai:"",acts:[]} ],
+    result:null
+  };
+}
+
+/* ============ 渲染 ============ */
+function renderMeta(){
+  document.getElementById("meta_title").value = state.meta.title;
+  document.getElementById("meta_mode").value = state.meta.mode;
+  document.getElementById("meta_aka").value = String(state.meta.aka);
+  document.getElementById("meta_scores").value = state.meta.scores.join(",");
+  for(let i=0;i<4;i++) document.getElementById("name"+i).value = state.meta.names[i];
+}
+function renderRounds(){
+  const box=document.getElementById("rounds");
+  box.innerHTML="";
+  state.rounds.forEach((r,ri)=>{
+    const dealer = r.kyoku%4;
+    const div=document.createElement("div");
+    div.className="round";
+    div.innerHTML = `
+      <div class="rhead">
+        <b>第 ${ri+1} 局</b>
+        <label>局<b style="font-weight:400">
+          <select data-r="${ri}" class="r_kyoku">
+            ${["东1","东2","东3","东4","南1","南2","南3","南4"].map((k,i)=>`<option value="${i}" ${r.kyoku==i?"selected":""}>${k}</option>`).join("")}
+          </select></b></label>
+        <label>本场<input class="r_honba" data-r="${ri}" type="number" min="0" value="${r.honba}" style="width:60px"/></label>
+        <label>立直棒<input class="r_riichi" data-r="${ri}" type="number" min="0" value="${r.riichi}" style="width:60px"/></label>
+        <label>宝牌指示牌<input class="r_dora tilein" data-r="${ri}" type="text" value="${r.dora}" placeholder="如 1m"/></label>
+        <label>里宝牌(可选)<input class="r_ura tilein" data-r="${ri}" type="text" value="${r.ura}" placeholder="如 5p"/></label>
+        <button class="ghost danger r_del" data-r="${ri}">删除本局</button>
+      </div>
+      <div class="players"></div>
+      <div class="rresult" data-r="${ri}"></div>
+    `;
+    box.appendChild(div);
+    const pwrap=div.querySelector(".players");
+    r.players.forEach((pl,si)=>{
+      const pc=document.createElement("div");
+      pc.className="player";
+      pc.innerHTML=`
+        <h4><span>${SEAT_NAME[si]}家 (Seat ${si})${si===dealer?" · 庄":""}</span></h4>
+        <label style="width:100%">配牌（${si===dealer?"14":"13"}张）<b style="font-weight:400">
+          <input class="p_haipai tilein" data-r="${ri}" data-s="${si}" type="text" value="${pl.haipai}" placeholder="如 123456789m12345p"/>
+        </b></label>
+        <div class="acts" data-r="${ri}" data-s="${si}"></div>
+        <div class="row" style="margin-top:6px">
+          <select class="a_type" data-r="${ri}" data-s="${si}">
+            <option value="turn">摸+打</option>
+            <option value="pon">碰</option>
+            <option value="chi">吃</option>
+            <option value="daiminkan">大明杠</option>
+            <option value="ankan">暗杠</option>
+            <option value="kakan">加杠</option>
+          </select>
+          <input class="a_tiles tilein" data-r="${ri}" data-s="${si}" type="text" placeholder="牌（碰/吃/明杠3-4张）" style="width:150px"/>
+          <select class="a_from" data-r="${ri}" data-s="${si}" title="来自谁（碰/吃/明杠/加杠）">
+            <option value="0">来自上家</option><option value="1">来自对家</option><option value="2">来自下家</option>
+          </select>
+          <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" class="a_riichi"/>立直</label>
+          <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" class="a_tg"/>摸切</label>
+          <button class="a_add" data-r="${ri}" data-s="${si}">+ 添加动作</button>
+        </div>
+        <div class="hint">摸+打：先填“摸到的牌”再填“打出的牌”，用空格或逗号分开，如 <code>1s 5p</code>。碰：3张（含被碰的那张）。吃：3张（被吃+自己2张）。明杠：4张。暗杠：1张。加杠：先填原碰的3张再填加杠的1张。</div>
+      `;
+      pwrap.appendChild(pc);
+      const ul=pc.querySelector(".acts");
+      pl.acts.forEach((a,ai)=> ul.appendChild(actLi(a,ri,si,ai)));
+    });
+    renderResult(r, ri, div.querySelector(".rresult"));
+  });
+}
+function actLi(a,ri,si,ai){
+  const li=document.createElement("li");
+  let txt;
+  if(a.kind==="turn") txt=`摸 ${a.draw??"—"} → 打 ${a.discard}${a.riichi?"（立直）":""}${a.tsumogiri?"（摸切）":""}`;
+  else if(a.kind==="pon") txt=`碰（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="chi") txt=`吃（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="daiminkan") txt=`大明杠（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="ankan") txt=`暗杠`;
+  else if(a.kind==="kakan") txt=`加杠（来自${FR_LABEL[a.fr]}）`;
+  li.innerHTML=`<span>${txt}</span><span class="del" data-r="${ri}" data-s="${si}" data-a="${ai}">✕</span>`;
+  return li;
+}
+function renderResult(r,ri,box){
+  const res=r.result;
+  const sel = res? res.type : "none";
+  box.innerHTML=`
+    <div class="row">
+      <label>本局结果
+        <select class="res_type" data-r="${ri}">
+          <option value="none" ${sel==="none"?"selected":""}>（未录入）</option>
+          <option value="tsumo" ${sel==="tsumo"?"selected":""}>和了·自摸</option>
+          <option value="ron" ${sel==="ron"?"selected":""}>和了·荣和</option>
+          <option value="ryuukyoku" ${sel==="ryuukyoku"?"selected":""}>流局</option>
+          <option value="nagashi" ${sel==="nagashi"?"selected":""}>流し満貫</option>
+          <option value="abort" ${sel==="abort"?"selected":""}>途中流局（九种九牌等）</option>
+        </select></label>
+      <label>赢家(Seat)<select class="res_win" data-r="${ri}">${[0,1,2,3].map(i=>`<option value="${i}" ${res&&res.winner==i?"selected":""}>${SEAT_NAME[i]}</option>`).join("")}</select></label>
+      <label>放铳/点炮(Seat，荣和时)<select class="res_from" data-r="${ri}">${[0,1,2,3].map(i=>`<option value="${i}" ${res&&res.from==i?"selected":""}>${SEAT_NAME[i]}</option>`).join("")}</select></label>
+      <label>点数变动 Δ（4家，逗号分隔）<input class="res_delta" data-r="${ri}" type="text" value="${res?res.delta.join(","):""}" placeholder="如 4500,-1500,-1500,-1500"/></label>
+    </div>
+    <div class="row">
+      <label style="width:100%">符/番/点数说明（自由文本，例：<code>30符1飜1500点∀</code> 或 <code>満貫2000点</code>）<input class="res_score" data-r="${ri}" type="text" value="${res?res.score:""}" placeholder="30符1飜1500点∀"/></label>
+    </div>
+    <div class="row">
+      <label style="width:100%">役（每行一个，例：<code>立直(1飜)</code> <code>平和(1飜)</code>；途中流局填 <code>九種九牌</code> 等）<textarea class="res_yaku" data-r="${ri}" rows="3" placeholder="立直(1飜)\n平和(1飜)">${res?res.yaku.join("\n"):""}</textarea></label>
+    </div>
+  `;
+}
+
+/* ============ 事件 ============ */
+function bindEvents(){
+  // meta
+  const ids=[["meta_title","title"],["meta_mode","mode"],["meta_aka","aka"],["meta_scores","scores"]];
+  ids.forEach(([id,key])=>document.getElementById(id).addEventListener("input",e=>{
+    let v=e.target.value;
+    if(key==="aka") v=parseInt(v,10);
+    if(key==="scores") v=v.split(",").map(s=>parseInt(s,10)).filter(n=>!isNaN(n));
+    state.meta[key]=v; renderPreview();
+  }));
+  for(let i=0;i<4;i++) document.getElementById("name"+i).addEventListener("input",e=>{state.meta.names[i]=e.target.value;renderPreview();});
+
+  document.getElementById("add_round").addEventListener("click",()=>{state.rounds.push(newRound());renderRounds();renderPreview();});
+  document.getElementById("clear_all").addEventListener("click",()=>{if(confirm("确定清空所有录入？")){state.rounds=[];renderRounds();renderPreview();}});
+  document.getElementById("load_example").addEventListener("click",loadExample);
+
+  // 事件委托
+  document.getElementById("rounds").addEventListener("change",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_kyoku")){state.rounds[+t.dataset.r].kyoku=+t.value;renderRounds();renderPreview();}
+    else if(t.classList.contains("r_honba")){state.rounds[+t.dataset.r].honba=+t.value||0;renderPreview();}
+    else if(t.classList.contains("r_riichi")){state.rounds[+t.dataset.r].riichi=+t.value||0;renderPreview();}
+    else if(t.classList.contains("r_dora")){state.rounds[+t.dataset.r].dora=t.value;renderPreview();}
+    else if(t.classList.contains("r_ura")){state.rounds[+t.dataset.r].ura=t.value;renderPreview();}
+    else if(t.classList.contains("a_from")){/* stored at add time */}
+    else if(t.classList.contains("res_type")){ setResultType(+t.dataset.r, t.value); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("res_win")){ state.rounds[+t.dataset.r].result.winner=+t.value; renderPreview(); }
+    else if(t.classList.contains("res_from")){ state.rounds[+t.dataset.r].result.from=+t.value; renderPreview(); }
+  });
+  document.getElementById("rounds").addEventListener("input",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_dora")||t.classList.contains("r_ura")){ state.rounds[+t.dataset.r][t.classList.contains("r_dora")?"dora":"ura"]=t.value; renderPreview(); }
+    else if(t.classList.contains("p_haipai")){ state.rounds[+t.dataset.r].players[+t.dataset.s].haipai=t.value; renderPreview(); }
+    else if(t.classList.contains("res_delta")){ const d=t.value.split(",").map(s=>parseInt(s,10)); if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.delta=d; renderPreview(); }
+    else if(t.classList.contains("res_score")){ if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.score=t.value; renderPreview(); }
+    else if(t.classList.contains("res_yaku")){ if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.yaku=t.value.split("\n").map(s=>s.trim()).filter(Boolean); renderPreview(); }
+  });
+  document.getElementById("rounds").addEventListener("click",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_del")){ state.rounds.splice(+t.dataset.r,1); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("a_del")){ const r=+t.dataset.r,s=+t.dataset.s,a=+t.dataset.a; state.rounds[r].players[s].acts.splice(a,1); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("a_add")){ addAction(+t.dataset.r,+t.dataset.s); }
+  });
+
+  document.getElementById("download").addEventListener("click",downloadJson);
+  document.getElementById("copy5").addEventListener("click",()=>copyLink("5"));
+  document.getElementById("copy6").addEventListener("click",()=>copyLink("6"));
+}
+function setResultType(ri,type){
+  const r=state.rounds[ri];
+  if(type==="none"){ r.result=null; return; }
+  if(!r.result) r.result={type,winner:0,from:0,delta:[0,0,0,0],score:"",yaku:[]};
+  r.result.type=type;
+}
+function addAction(ri,si){
+  const root=document.querySelector(`.player .a_type[data-r="${ri}"][data-s="${si}"]`);
+  const sel=root.closest(".player");
+  const type=sel.querySelector(".a_type").value;
+  const tiles=sel.querySelector(".a_tiles").value;
+  const from=+sel.querySelector(".a_from").value;
+  const riichi=sel.querySelector(".a_riichi").checked;
+  const tg=sel.querySelector(".a_tg").checked;
+  const pl=state.rounds[ri].players[si];
+  try{
+    if(type==="turn"){
+      const parts=tiles.trim().split(/[\s,]+/).filter(Boolean);
+      if(parts.length<1) throw "摸+打：请填写牌（摸到的牌 打出的牌）";
+      const draw=parts[0]?parseTiles(parts[0])[0]:null;
+      const disc=parts[1]?parseTiles(parts[1])[0]:(parts[0]?parseTiles(parts[0])[0]:null);
+      if(disc==null) throw "摸+打：打出的牌缺失";
+      pl.acts.push({kind:"turn",draw,discard:disc,riichi,tsumogiri:tg});
+    } else if(type==="pon"){
+      const t=tilesToObjs(tiles); if(t.length!==3) throw "碰需要3张牌（含被碰的那张）";
+      pl.acts.push({kind:"pon",fr:from,called:t[0],a:t[1],b:t[2],meld:encPon({called:t[0],a:t[1],b:t[2],fr:from})});
+    } else if(type==="chi"){
+      const t=tilesToObjs(tiles); if(t.length!==3) throw "吃需要3张牌";
+      pl.acts.push({kind:"chi",fr:from,called:t[0],a:t[1],b:t[2],meld:encChi({called:t[0],a:t[1],b:t[2]})});
+    } else if(type==="daiminkan"){
+      const t=tilesToObjs(tiles); if(t.length!==4) throw "大明杠需要4张牌";
+      pl.acts.push({kind:"daiminkan",fr:from,called:t[0],a:t[1],b:t[2],c:t[3],meld:encDaiminkan({called:t[0],a:t[1],b:t[2],c:t[3],fr:from})});
+    } else if(type==="ankan"){
+      const t=tilesToObjs(tiles); if(t.length!==1) throw "暗杠需要1张牌";
+      pl.acts.push({kind:"ankan",tile:t[0],meld:encAnkan({tile:t[0]})});
+    } else if(type==="kakan"){
+      const t=tilesToObjs(tiles); if(t.length!==4) throw "加杠：先填原碰3张再填加杠1张，共4张";
+      pl.acts.push({kind:"kakan",fr:from,a:t[0],b:t[1],c:t[2],added:t[3],meld:encKakan({a:t[0],b:t[1],c:t[2],added:t[3],fr:from})});
+    }
+    sel.querySelector(".a_tiles").value="";
+    renderRounds(); renderPreview();
+  }catch(err){ alert("添加动作失败："+err); }
+}
+
+/* ============ 导出 / 转换 ============ */
+function buildEntry(r){
+  const kyokuVal = r.kyoku;            // 0..7
+  const init = state.meta.scores.length===4 ? state.meta.scores.slice() : [25000,25000,25000,25000];
+  const doras = parseTiles(r.dora);
+  const uras = r.result && (r.result.type==="tsumo"||r.result.type==="ron") ? parseTiles(r.ura) : [];
+  const draws=[[],[],[],[]], discards=[[],[],[],[]];
+  r.players.forEach((pl,si)=>{
+    pl.acts.forEach(a=>{
+      if(a.kind==="turn"){
+        if(a.draw!=null) draws[si].push(a.draw);
+        let d=a.discard;
+        if(a.tsumogiri) d=TSUMOGIRI;
+        if(a.riichi) d="r"+d;
+        discards[si].push(d);
+      } else if(a.kind==="pon"||a.kind==="chi"||a.kind==="daiminkan"){
+        draws[si].push(a.meld);
+        if(a.kind==="daiminkan") discards[si].push(0);
+      } else if(a.kind==="ankan"||a.kind==="kakan"){
+        discards[si].push(a.meld);
+      }
+    });
+  });
+  // tenhou 要求：每家 [配牌, 摸牌, 打牌] 依次交错，而非分组
+  const entry=[ [kyokuVal, r.honba||0, r.riichi||0], init, doras, uras ];
+  for(let i=0;i<4;i++){ entry.push(parseTiles(r.players[i].haipai)); entry.push(draws[i]); entry.push(discards[i]); }
+  // result
+  const res=r.result;
+  if(res){
+    if(res.type==="tsumo"||res.type==="ron"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      const detail=[ res.winner, res.type==="ron"?res.from:res.winner, res.winner, res.score||"" ];
+      (res.yaku||[]).forEach(y=>detail.push(y));
+      entry.push(["和了", delta, detail]);
+    } else if(res.type==="ryuukyoku"||res.type==="nagashi"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      entry.push([res.type==="nagashi"?"流し満貫":"流局", delta]);
+    } else if(res.type==="abort"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      const label=(res.yaku&&res.yaku[0])||"九種九牌";
+      entry.push([label, delta]);
+    }
+  }
+  return entry;
+}
+function buildJson(){
+  const mode = state.meta.mode==="south"?2:1;
+  const disp = (state.meta.mode==="south"?"南":"东")+"喰"+(state.meta.aka?"赤":"");
+  const log = state.rounds.map(buildEntry);
+  return {
+    ver:"2.3",
+    ref:"manual-"+Date.now(),
+    ratingc:"PF4",
+    rule:{ disp, aka53:state.meta.aka?1:0, aka52:state.meta.aka?1:0, aka51:state.meta.aka?1:0 },
+    lobby:0,
+    dan:["","","",""],
+    rate:[0,0,0,0],
+    sx:["C","C","C","C"],
+    name:state.meta.names.slice(0,4),
+    sc: state.meta.scores.length===4 ? [0,state.meta.scores[0]/1000,0,state.meta.scores[1]/1000,0,state.meta.scores[2]/1000,0,state.meta.scores[3]/1000] : [0,0,0,0,0,0,0,0],
+    title:[state.meta.title||"手动牌谱", ""],
+    log
+  };
+}
+function renderPreview(){
+  const json=buildJson();
+  document.getElementById("json_preview").textContent=JSON.stringify(json,null,2);
+  const link5="https://tenhou.net/5/#json="+encodeURIComponent(JSON.stringify(json));
+  document.getElementById("link_preview").textContent=link5;
+}
+function downloadJson(){
+  const json=buildJson();
+  const blob=new Blob([JSON.stringify(json,null,2)],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  const date=new Date().toISOString().slice(0,10);
+  a.download=`paipu_${date}_${json.rule.disp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  document.getElementById("export_status").textContent="已下载 "+a.download;
+}
+function copyLink(which){
+  const json=buildJson();
+  const base=which==="6"?"https://tenhou.net/6/":"https://tenhou.net/5/";
+  const link=base+"#json="+encodeURIComponent(JSON.stringify(json));
+  navigator.clipboard.writeText(link).then(()=>{
+    document.getElementById("export_status").textContent=`已复制 tenhou.net/${which} 链接`;
+  },()=>{ document.getElementById("export_status").textContent="复制失败，链接见右上预览框"; });
+}
+function copyJson(){
+  try{
+    const json=buildJson();
+    navigator.clipboard.writeText(JSON.stringify(json,null,2)).then(()=>{
+      document.getElementById("export_status").textContent="已复制完整 json6 文本（可直接粘贴给 mortal）";
+    },()=>{
+      const ta=document.getElementById("json_preview"); ta.focus(); try{ document.execCommand("selectAll"); }catch(e){}
+      document.getElementById("export_status").textContent="复制失败，请手动从右侧预览框全选复制";
+    });
+  }catch(err){ document.getElementById("export_status").textContent="复制失败："+err; }
+}
+function openTenhou6(){
+  try{
+    const json=buildJson();
+    const link="https://tenhou.net/6/#json="+encodeURIComponent(JSON.stringify(json));
+    window.open(link,"_blank");
+    document.getElementById("export_status").textContent="已在 tenhou.net/6 打开并加载牌谱（可逐步查看/切牌）";
+  }catch(err){ document.getElementById("export_status").textContent="打开失败："+err; }
+}
+function openMortal(){
+  try{
+    const json=buildJson();
+    const pid=parseInt(document.getElementById("analyze_seat").value,10);
+    const txt=JSON.stringify(json,null,2);
+    const go=()=>{
+      window.open("https://mjai.ekyu.moe/zh-cn.html","_blank");
+      document.getElementById("export_status").textContent="已打开 Mortal 页面并复制牌谱（玩家ID="+pid+"）。请在页面切到「自定义 (tenhou.net/6 JSON)」，在「玩家 ID」填 "+pid+"，Ctrl+V 粘贴后点加载。";
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(go,go);
+    else go();
+  }catch(err){ document.getElementById("export_status").textContent="打开失败："+err; }
+}
+
+/* ============ 示例 ============ */
+function loadExample(){
+  state.rounds=[];
+  const r=newRound();
+  r.kyoku=0; r.honba=0; r.riichi=0; r.dora="1m";
+  r.players[0].haipai="11123456789m1p";                 // 庄 14张
+  r.players[1].haipai="111222333m456p5s";
+  r.players[2].haipai="123456789p123s4z";
+  r.players[3].haipai="234566789s11z22z";
+  // 东1 简单流程：各家摸打，庄家最后立直自摸
+  r.players[1].acts.push({kind:"turn",draw:parseTiles("5m")[0],discard:parseTiles("5m")[0]});
+  r.players[2].acts.push({kind:"turn",draw:parseTiles("6p")[0],discard:parseTiles("6p")[0]});
+  r.players[3].acts.push({kind:"turn",draw:parseTiles("3s")[0],discard:parseTiles("3s")[0]});
+  r.players[0].acts.push({kind:"turn",draw:parseTiles("1s")[0],discard:parseTiles("1s")[0],riichi:true});
+  // 南家碰 2m（来自上家=庄家）
+  r.players[1].acts.push({kind:"pon",fr:0,called:tObj("2m"),a:tObj("2m"),b:tObj("2m"),meld:encPon({called:tObj("2m"),a:tObj("2m"),b:tObj("2m"),fr:0})});
+  r.players[1].acts.push({kind:"turn",draw:parseTiles("9p")[0],discard:parseTiles("9p")[0]});
+  // 庄家自摸：摸 5m 打 5m（摸切）再自摸——这里直接记录一个“和了”动作不便，改用结果字段
+  r.players[0].acts.push({kind:"turn",draw:parseTiles("7m")[0],discard:parseTiles("7m")[0],tsumogiri:true});
+  r.result={type:"tsumo",winner:0,from:0,delta:[4500,-1500,-1500,-1500],score:"30符1飜1500点∀",yaku:["立直(1飜)","平和(1飜)"]};
+  state.rounds.push(r);
+  renderRounds(); renderPreview();
+}
+
+/* ============ 牌张面板 ============ */
+let lastInput=null;
+function buildPalette(){
+  const pal=document.getElementById("palette");
+  const defs=[];
+  for(const s of ["m","p","s"]) for(let n=1;n<=9;n++) defs.push({t:s,n});
+  defs.push({t:"z",n:1},{t:"z",n:2},{t:"z",n:3},{t:"z",n:4},{t:"z",n:5},{t:"z",n:6},{t:"z",n:7});
+  defs.push({t:"m",n:0},{t:"p",n:0},{t:"s",n:0}); // 赤5
+  defs.forEach(d=>{
+    const b=document.createElement("div");
+    b.className="tk "+d.t+(d.n===0?" aka":"");
+    b.textContent = d.n===0 ? "0"+d.t+"*" : d.n+d.t;
+    b.title = d.n===0?("赤5"+({m:"万",p:"筒",s:"索"}[d.t])):(d.n+({m:"万",p:"筒",s:"索",z:""}[d.t])+(d.t==="z"?["东","南","西","北","白","发","中"][d.n-1]:""));
+    b.addEventListener("click",()=>{
+      const tok=d.n+d.t;
+      if(lastInput){ const s=lastInput.value; lastInput.value=(s&&!/\s$/.test(s)?s+" ":"")+tok; lastInput.dispatchEvent(new Event("input",{bubbles:true})); }
+    });
+    pal.appendChild(b);
+  });
+}
+// 记录最后聚焦的牌输入
+document.addEventListener("focusin",e=>{ if(e.target.classList&&e.target.classList.contains("tilein")) lastInput=e.target; });
+
+/* ============ 初始化 ============ */
+function init(){
+  buildPalette();
+  renderMeta();
+  renderRounds();
+  renderPreview();
+  bindEvents();
+}
+if(typeof document!=="undefined") init();
+
+/* ============ 操作手册内容（也用于离线阅读） ============ */
+const MANUAL = `
+<h3>一、这个工具做什么</h3>
+<p>把一局麻将牌谱<b>手动录入</b>成 tenhou 的 <b>json6</b> 格式（一个 <code>.json</code> 文件），可直接交给 <b>mortal / akochan</b> 跑分；同时生成 <b>tenhou.net/5</b> 预览链接，方便先看牌谱 replay。</p>
+
+<h3>二、牌张记法（雀魂/天凤通用）</h3>
+<table class="manual">
+<tr><th>种类</th><th>后缀</th><th>写法</th><th>tenhou 数字</th></tr>
+<tr><td>万子</td><td>m</td><td>1m 2m … 9m</td><td>11–19</td></tr>
+<tr><td>筒子</td><td>p</td><td>1p 2p … 9p</td><td>21–29</td></tr>
+<tr><td>索子</td><td>s</td><td>1s 2s … 9s</td><td>31–39</td></tr>
+<tr><td>字牌</td><td>z</td><td>1z东 2z南 3z西 4z北 5z白 6z发 7z中</td><td>41–47</td></tr>
+<tr><td>赤5（红宝牌）</td><td>0</td><td>0m 0p 0s</td><td>51 / 52 / 53</td></tr>
+</table>
+<p class="hint">一条手牌用“串”表示，如 <code>123456789m12345p</code> = 123456789万 + 12345筒。配牌框、宝牌框都直接填这种串。赤5 用 <code>0m/0p/0s</code>。</p>
+
+<h3>三、摸打与鸣牌记法</h3>
+<table class="manual">
+<tr><th>动作</th><th>tenhou 记法</th><th>说明</th></tr>
+<tr><td>打牌</td><td>数字（如 5s = 35）</td><td>普通切牌</td></tr>
+<tr><td>立直宣言打</td><td>前缀 <code>r</code>（如 r35）</td><td>立直的那一张</td></tr>
+<tr><td>摸切</td><td><code>60</code></td><td>刚摸的牌直接打出</td></tr>
+<tr><td>吃</td><td><code>c</code>+被吃+自己2张（如 c232425）</td><td>来自上/对/下家</td></tr>
+<tr><td>碰</td><td><code>p</code>+被碰+自己2张</td><td>如 p212121（1筒碰）</td></tr>
+<tr><td>大明杠</td><td><code>m</code>+被杠+自己3张</td><td>抢杠前的明杠</td></tr>
+<tr><td>暗杠</td><td><code>a</code> 收尾（如 323232a32）</td><td>自己4张</td></tr>
+<tr><td>加杠</td><td><code>k</code> 收尾（如 k313131）</td><td>碰后加一张</td></tr>
+</table>
+<p class="hint">本工具会替你生成这些前缀串，你只需在“动作”里选类型、填牌、选“来自谁”即可，不必手敲 c/p/m/a/k。</p>
+
+<h3>四、分步操作</h3>
+<ol>
+<li><b>① 对局信息</b>：填标题、规则（南喰/东喰）、赤牌有无、四家昵称、起始点数（可选）。</li>
+<li><b>② 牌张面板</b>：先点某个输入框使其高亮，再点牌面按钮即可“打”牌进去；也可直接手打记法。</li>
+<li><b>③ 添加一局</b>：选东1…南4、本场数、立直棒数、宝牌指示牌、里宝牌（和了时填）。</li>
+<li>每家填<b>配牌</b>（庄家14张、闲家13张），然后用“动作”逐条录入：摸+打 / 碰 / 吃 / 大明杠 / 暗杠 / 加杠（选来自上/对/下家，可勾立直·摸切）。</li>
+<li>最后在<b>本局结果</b>选 自摸/荣和/流局/流し満貫/途中流局，填赢家、放铳家、Δ点数（4家用逗号分隔，从雀魂结算画面照抄）、符番点数说明与役（每行一个）。</li>
+<li><b>④ 导出</b>：点“下载 json6”保存 <code>.json</code>；或“复制 tenhou.net/5 链接”先在线看 replay。右侧实时显示完整 json。</li>
+</ol>
+
+<h3>五、与 tenhou.net/6 的区别 & 提示</h3>
+<ul>
+<li>tenhou.net/6 自带“手動入力”，但其记法较硬核；本工具用按钮+表单降低门槛，导出格式与 tenhou.net/5/6 兼容。</li>
+<li>庄家配牌要填 <b>14</b> 张（含首摸的那张），闲家 <b>13</b> 张；首摸之后的每次“摸+打”都作为一条动作录入。</li>
+<li>Δ点数（各家增减）建议直接从雀魂结算画面照抄，避免手算出错；自摸时赢家 Δ 为正、其余为负。</li>
+<li>三麻（3人）暂不支持（mortal 跑分为4人）；中途流局填役名为“九種九牌/四風連打/四家立直/四開槓”。</li>
+<li>导出后把 <code>.json</code> 交给 mortal/akochan 即可跑分。</li>
+</ul>
+`;
+if(typeof document!=="undefined") document.getElementById("manual_body").innerHTML=MANUAL;
+</script>
+</body>
+</html>
+</template>
+<template id="tpl-current"><!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>当前牌局 → json6 生成器</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e2e6ea; --ink:#1f2733; --muted:#6b7684;
+    --accent:#2f6df0; --accent2:#0a8f5b; --danger:#d24b4b; --warn:#b8860b;
+    --man:#2b6cb0; --pin:#2f9e44; --sou:#e8590c; --hon:#7b5cd6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:16px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 20px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+  label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=text]{min-width:120px}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  button.ghost{background:transparent}
+  button.danger{color:var(--danger);border-color:#f0caca}
+  .names{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .names label{min-width:0}
+  .names input{width:100%}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .palette{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+  .tk{width:30px;height:38px;border-radius:6px;border:1px solid #cfd6dd;background:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+  .tk.m{color:var(--man)} .tk.p{color:var(--pin)} .tk.s{color:var(--sou)} .tk.z{color:var(--hon)}
+  .tk.aka{background:#ffe3e3;border-color:#ffb3b3}
+  .big{width:320px}
+  pre{padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:360px;font:12px/1.45 ui-monospace,Consolas,monospace}
+  code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}.names{grid-template-columns:repeat(2,1fr)}}
+  .seat-tag{display:inline-block;background:#eef3fb;color:#2f6df0;border-radius:6px;padding:1px 7px;font-size:12px;margin-right:6px}
+  .warnbox{background:#fff7e6;border:1px solid #ffe1a8;color:#8a5a00;padding:8px 10px;border-radius:8px;font-size:12px;margin-top:8px}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>当前牌局 → json6 生成器</h1>
+  <p>输入你自己的手牌、牌河、巡目与分数，自动生成 tenhou json6 当前牌局（其他三家手牌随机、切牌仅用你手上没有的字牌）。可下载 .json 交给 mortal 跑分。</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ① 对局信息 -->
+  <div class="card">
+    <h2>① 对局信息</h2>
+    <div class="row">
+      <label>标题<input id="meta_title" type="text" value="当前牌局" /></label>
+      <label>规则
+        <select id="meta_mode">
+          <option value="south">南喰（半庄）</option>
+          <option value="east">东喰（东风）</option>
+        </select>
+      </label>
+      <label>赤牌（红5）
+        <select id="meta_aka">
+          <option value="1">有（3枚）</option>
+          <option value="0">无</option>
+        </select>
+      </label>
+      <label>我的座位
+        <select id="my_seat">
+          <option value="0">东 (Seat 0)</option>
+          <option value="1">南 (Seat 1)</option>
+          <option value="2">西 (Seat 2)</option>
+          <option value="3">北 (Seat 3)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>局
+        <select id="kyoku">
+          <option value="0">东1</option><option value="1">东2</option><option value="2">东3</option><option value="3">东4</option>
+          <option value="4">南1</option><option value="5">南2</option><option value="6">南3</option><option value="7">南4</option>
+        </select>
+      </label>
+      <label>本场<input id="honba" type="number" min="0" value="0" style="width:60px"/></label>
+      <label>立直棒<input id="riichi_sticks" type="number" min="0" value="0" style="width:60px"/></label>
+      <label>宝牌指示牌（可多个，空格分隔）<input id="dora" type="text" value="1m" class="tilein big" placeholder="如 1m 5p"/></label>
+    </div>
+    <div class="row">
+      <label>四家点数（逗号分隔，顺序 东/南/西/北）<input id="scores" type="text" value="25000,25000,25000,25000" class="big"/></label>
+    </div>
+    <div class="names">
+      <label>东家 (Seat 0)<input id="name0" type="text" value="玩家1"/></label>
+      <label>南家 (Seat 1)<input id="name1" type="text" value="玩家2"/></label>
+      <label>西家 (Seat 2)<input id="name2" type="text" value="玩家3"/></label>
+      <label>北家 (Seat 3)<input id="name3" type="text" value="玩家4"/></label>
+    </div>
+  </div>
+
+  <!-- ② 我的手牌与牌河 -->
+  <div class="card">
+    <h2>② 我的手牌与牌河（核心输入）</h2>
+    <div class="row">
+      <label>我的手牌（14 张，<b>最后一张视为刚摸到的牌</b>）<input id="my_hand" type="text" value="123456789m12345p" class="tilein big" placeholder="如 123456789m12345p"/></label>
+      <label>刚摸到的牌（可选，覆盖“最后一张”）<input id="my_draw" type="text" value="" class="tilein" placeholder="如 5p"/></label>
+    </div>
+    <div class="row">
+      <label>我的牌河（<b>本巡之前</b>已打出的牌，逗号/空格分隔）<input id="my_river" type="text" value="1s 2s 5z 6z 7z" class="tilein big" placeholder="如 1s 2s 5z 6z 7z"/></label>
+      <label>我打出的牌（<b>本巡刚打出</b>的那张，须在我手牌中）<input id="my_discard" type="text" value="" class="tilein" placeholder="如 5p"/></label>
+      <label>巡目（其他家也打出的张数，默认=本巡前牌河张数）<input id="turn" type="number" min="0" value="5" style="width:70px"/></label>
+      <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="my_riichi"/>我已立直</label>
+    </div>
+    <div class="hint">记法：<code>123456789m12345p</code> 表示 1-9 万 + 12345 筒；<code>0m/0p/0s</code> 为赤5；字牌 <code>1z</code>东 <code>2z</code>南 <code>3z</code>西 <code>4z</code>北 <code>5z</code>白 <code>6z</code>发 <code>7z</code>中。</div>
+    <div class="hint">生成规则：其他三家手牌随机；他们的切牌<b>只从你手上没有的字牌</b>里选（赤5 不会被选作无关牌，字牌耗尽时退化为其他你手上没有的牌，并提示）。</div>
+    <div class="palette" id="palette"></div>
+    <div class="hint">点上方某个输入框使其高亮，再点牌即可把牌“打”进去；也可直接手打记法。</div>
+  </div>
+
+  <!-- ③ 生成 / 导出 -->
+  <div class="card">
+    <h2>③ 生成 / 导出</h2>
+    <div class="row">
+      <button class="primary" id="generate">生成 json6</button>
+      <button class="good" id="download">下载 json6 (.json)</button>
+      <button id="copy5">复制 tenhou.net/5 预览链接</button>
+      <button class="ghost" id="copy6">复制 tenhou.net/6 链接</button>
+      <button id="copyjson" onclick="copyJson()">复制 json6 文本</button>
+      <button class="primary" id="open6">在 tenhou.net/6 打开（直接加载牌谱）</button>
+      <button id="openmortal">在 Mortal 分析（自动复制）</button>
+      <button class="ghost" id="reroll">其他家重新随机</button>
+      <button class="ghost" id="load_example">载入示例</button>
+      <span id="export_status" class="hint"></span>
+    </div>
+    <div id="warnbox"></div>
+    <div class="grid2">
+      <div>
+        <div class="hint" style="margin-bottom:4px">完整 json6（点“生成”后更新，点“下载”保存为 .json 交给 mortal）：</div>
+        <pre id="json_preview">（请先点“生成 json6”）</pre>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:4px">tenhou.net/5 单局预览链接：</div>
+        <pre id="link_preview"></pre>
+        <div class="hint" style="margin-top:6px">说明：本工具生成的牌局以「流局」作为终止行，仅为让 mortal / tenhou 能正常解析这一“当前牌局”；分析的是你 14 张手牌的切牌建议。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作说明 -->
+  <div class="card">
+    <details open>
+      <summary>使用说明 / 注意事项（点此折叠）</summary>
+      <div style="font-size:13px;line-height:1.7">
+        <ol>
+          <li><b>填对局信息</b>：标题、规则、赤牌、你的座位、局数/本场/立直棒、宝牌指示牌、四家点数与昵称。</li>
+          <li><b>填你的手牌</b>：14 张，最后一张默认视为“刚摸到的牌”（要切牌前的那张）。若想指定摸入牌，填到“刚摸到的牌”框。</li>
+          <li><b>填你的牌河 + 打出的牌</b>：牌河填<b>本巡之前</b>已打出的所有牌；“我打出的牌”填<b>本巡刚打出</b>的那一张（必须是你 14 张手牌里的一张）。两者合起来就是你完整的牌河。这样可保证每一巡“摸+打”成对、mortal 能正常解析当前这一巡。</li>
+          <li><b>巡目</b>：其他三家各自打出的张数，默认等于你的“本巡前牌河”张数（保证四家手数一致）；若手动改大，其他家会多打几张。</li>
+          <li>点 <b>生成 json6</b>：自动随机出其他三家手牌，并把他们的切牌限制在你手上没有的字牌；右下角给出 tenhou.net/5 预览链接。</li>
+          <li>点 <b>下载 json6</b> 保存 <code>.json</code>（mortal 直接吃）；<b>其他家重新随机</b> 可换一批随机分布。</li>
+        </ol>
+        <p class="hint"><b>关于“无关牌”</b>：字牌共 7 种 ×4 = 28 张。若你持有其中若干，其他家只从“你没持有的字牌”里切；字牌用尽后会退化为其他你手上没有的牌（界面会黄条提示）。这是为了生成一个“尽量不干扰你手牌”的干净牌局用于跑分。<b>该牌局是合成的，仅供切牌/向听参考，不能当作真实对局复盘。</b></p>
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============ 牌张编码（与 tenhou / NAGA 一致，已验证） ============ */
+const TYPE = { m:0, p:1, s:2, z:3 };
+function tObj(text){ return { num:parseInt(text[0],10), t:TYPE[text[1].toLowerCase()] }; }
+function tEnc(x){ return x.num!==0 ? 10*(x.t+1)+x.num : 50+(x.t+1); }
+const TSUMOGIRI = 60;
+
+// 把记法字符串解析为 tenhou 数字数组。支持 "123456789m"、"0m"(赤5)、多组空格/逗号分隔
+function parseTiles(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").replace(/,/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase(), t=TYPE[suit];
+    for(const dch of tok.slice(0,-1)){
+      const num=parseInt(dch,10);
+      out.push( (num===0 && t!==3) ? 50+(t+1) : 10*(t+1)+num ); // 赤5 -> 51/52/53
+    }
+  });
+  return out;
+}
+const SEAT_NAME = ["东","南","西","北"];
+
+/* ============ 状态 ============ */
+let lastEntry=null;     // 最近一次生成的 entry
+let lastMeta=null;       // 最近一次生成的顶层字段
+let lastUsedFallback=false;
+let lastBagShort=false;
+
+/* ============ 生成逻辑 ============ */
+// 构造一个 136 张的牌堆计数表（34 种，每种 4 张），并按“我的手牌 + 牌河 + 宝牌指示”扣减
+function buildBag(myCodes, myRiver, doraCodes){
+  const bag={};
+  for(let c=11;c<=19;c++) bag[c]=4;
+  for(let c=21;c<=29;c++) bag[c]=4;
+  for(let c=31;c<=39;c++) bag[c]=4;
+  for(let c=41;c<=47;c++) bag[c]=4;
+  const dec=c=>{ if(bag[c]>0) bag[c]--; };
+  myCodes.forEach(dec); myRiver.forEach(dec); doraCodes.forEach(dec);
+  return bag;
+}
+// 从 bag 中无放回抽取 n 张（构成一副手牌），返回数组
+function sampleTiles(bag,n){
+  const deck=[];
+  for(const c in bag){ for(let i=0;i<bag[c];i++) deck.push(parseInt(c,10)); }
+  // Fisher-Yates
+  for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+  return deck.slice(0,n);
+}
+function pickFrom(arr){ return arr.length?arr[Math.floor(Math.random()*arr.length)]:null; }
+
+// 生成一家对手：随机手牌 + 巡目张切牌（仅“我手上没有的字牌”，优先字牌）
+function genOpponent(k, bag, myHonors, myCodesSet){
+  const haipai=sampleTiles(bag,13);
+  haipai.forEach(c=>{ if(bag[c]>0) bag[c]--; });
+  // 初始字牌池：字牌(41-47) 且 我手上没有 且 仍有剩余
+  let pool=[];
+  for(let c=41;c<=47;c++) if(!myHonors.has(c) && bag[c]>0) pool.push(c);
+  const draws=[], discards=[];
+  let fallback=false;
+  for(let i=0;i<k;i++){
+    let t=pickFrom(pool);
+    if(t===null || bag[t]<=0){
+      // 退化：优先其他“我手上没有的牌”，再退化为任意剩余牌
+      const cand=[];
+      for(const c in bag) if(bag[c]>0 && !myCodesSet.has(parseInt(c,10))) cand.push(parseInt(c,10));
+      t=pickFrom(cand);
+      if(t===null){ for(const c in bag) if(bag[c]>0){ t=parseInt(c,10); break; } }
+      fallback=true;
+    }
+    if(t===null) break;
+    if(bag[t]>0) bag[t]--;
+    if(bag[t]<=0) pool=pool.filter(x=>x!==t);
+    draws.push(t); discards.push(t); // 摸后立切（tsumogiri）风格，干净无干扰
+  }
+  return { haipai, draws, discards, fallback };
+}
+
+function buildEntryFromUI(){
+  const mySeat=+document.getElementById("my_seat").value;
+  const kyoku=+document.getElementById("kyoku").value;
+  const honba=+document.getElementById("honba").value||0;
+  const riichiSticks=+document.getElementById("riichi_sticks").value||0;
+  const doraCodes=parseTiles(document.getElementById("dora").value);
+  const scoresStr=document.getElementById("scores").value.split(",").map(s=>parseInt(s,10));
+  const scores=(scoresStr.length===4 && scoresStr.every(n=>!isNaN(n)))?scoresStr:[25000,25000,25000,25000];
+
+  const handRaw=document.getElementById("my_hand").value;
+  const drawRaw=document.getElementById("my_draw").value.trim();
+  const riverRaw=document.getElementById("my_river").value;
+  const discardRaw=document.getElementById("my_discard").value.trim();
+  const myRiichi=document.getElementById("my_riichi").checked;
+  let turn=+document.getElementById("turn").value; if(isNaN(turn)||turn<0) turn=0;
+
+  const myCodes=parseTiles(handRaw);
+  if(myCodes.length!==14) throw "我的手牌必须是 14 张（当前 "+myCodes.length+" 张）";
+
+  // 本巡打出的牌：必须恰好 1 张，且在我 14 张手牌之内
+  const discTiles=parseTiles(discardRaw);
+  if(discTiles.length!==1) throw "“我打出的牌”必须恰好填 1 张（如 5p）";
+  const discardCode=discTiles[0];
+  if(!myCodes.includes(discardCode)) throw "“我打出的牌”不在你的手牌里，请确认它是你 14 张手牌中的一张";
+
+  // 拆分 摸入牌 / 配牌13
+  let drawn, haipai13;
+  if(drawRaw){
+    const d=parseTiles(drawRaw)[0];
+    const idx=myCodes.lastIndexOf(d);
+    if(idx<0) throw "“刚摸到的牌”不在手牌里，请检查";
+    haipai13=myCodes.filter((_,i)=>i!==idx);
+    drawn=d;
+  } else {
+    haipai13=myCodes.slice(0,13);
+    drawn=myCodes[13];
+  }
+  const myRiver=parseTiles(riverRaw);
+
+  if(turn < myRiver.length) turn=myRiver.length; // 至少与我的牌河一致
+
+  // 牌堆（扣掉我的手牌+牌河+宝牌）
+  const bag=buildBag(myCodes, myRiver, doraCodes);
+  const myHonors=new Set(myCodes.filter(c=>c>=41&&c<=47));
+  const myCodesSet=new Set(myCodes);
+  const myRiverSet=new Set(myRiver);
+
+  // 三家对手
+  const oppBySeat=[null,null,null,null];
+  let anyFallback=false, bagShort=false;
+  for(let seat=0;seat<4;seat++){
+    if(seat===mySeat) continue;
+    const o=genOpponent(turn, bag, myHonors, myCodesSet);
+    if(o.fallback) anyFallback=true;
+    if(o.draws.length<turn) bagShort=true;
+    oppBySeat[seat]=o;
+  }
+
+  // 组装 entry（tenhou 每家 [配牌, 摸牌, 打牌] 交错）
+  const entry=[ [kyoku, honba, riichiSticks], scores.slice(), doraCodes, [] /*uras*/ ];
+  for(let seat=0;seat<4;seat++){
+    if(seat===mySeat){
+      const draws=[...myRiver, drawn];            // 历史切牌(又被摸出) + 当前摸入
+      const discards=[...myRiver, discardCode];   // 历史切牌 + 本巡刚打出的牌
+      if(myRiichi && discards.length) discards[discards.length-1]="r"+discards[discards.length-1];
+      entry.push(haipai13, draws, discards);
+    } else {
+      const o=oppBySeat[seat];
+      entry.push(o.haipai, o.draws, o.discards);
+    }
+  }
+  // 终止行：流局（仅为让 mortal/tenhou 正常解析当前牌局）
+  entry.push(["流局",[0,0,0,0]]);
+
+  lastUsedFallback=anyFallback; lastBagShort=bagShort;
+  return { entry, scores, mySeat, kyoku };
+}
+
+function buildJson(){
+  if(!lastEntry) throw "请先点“生成 json6”";
+  const mode = document.getElementById("meta_mode").value==="south"?2:1;
+  const aka = document.getElementById("meta_aka").value==="1";
+  const disp = (document.getElementById("meta_mode").value==="south"?"南":"东")+"喰"+(aka?"赤":"");
+  const names=[0,1,2,3].map(i=>document.getElementById("name"+i).value);
+  const title=document.getElementById("meta_title").value||"当前牌局";
+  const scores=lastMeta.scores;
+  return {
+    ver:"2.3",
+    ref:"current-"+Date.now(),
+    ratingc:"PF4",
+    rule:{ disp, aka53:aka?1:0, aka52:aka?1:0, aka51:aka?1:0 },
+    lobby:0,
+    dan:["","","",""],
+    rate:[0,0,0,0],
+    sx:["C","C","C","C"],
+    name:names.slice(0,4),
+    sc: scores.length===4 ? [0,scores[0]/1000,0,scores[1]/1000,0,scores[2]/1000,0,scores[3]/1000] : [0,0,0,0,0,0,0,0],
+    title:[title,""],
+    log:[lastEntry]
+  };
+}
+
+function renderPreview(){
+  const json=buildJson();
+  document.getElementById("json_preview").textContent=JSON.stringify(json,null,2);
+  document.getElementById("link_preview").textContent="https://tenhou.net/5/#json="+encodeURIComponent(JSON.stringify(json));
+}
+
+/* ============ 事件 ============ */
+function doGenerate(){
+  const warn=document.getElementById("warnbox");
+  warn.innerHTML="";
+  try{
+    const {entry,scores,mySeat,kyoku}=buildEntryFromUI();
+    lastEntry=entry; lastMeta={scores,mySeat,kyoku};
+    renderPreview();
+    document.getElementById("export_status").textContent="已生成（"+SEAT_NAME[mySeat]+"家视角，巡目 "+document.getElementById("turn").value+"）";
+    if(lastUsedFallback||lastBagShort){
+      warn.innerHTML='<div class="warnbox">⚠️ 字牌不足：其他家切牌已退化为“你手上没有的其他牌”（牌局为合成数据，仅供切牌/向听参考，非真实复盘）。</div>';
+    }
+  }catch(err){
+    warn.innerHTML='<div class="warnbox">生成失败：'+err+'</div>';
+  }
+}
+function downloadJson(){
+  try{ const json=buildJson();
+    const blob=new Blob([JSON.stringify(json,null,2)],{type:"text/plain;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    const date=new Date().toISOString().slice(0,10);
+    a.download=`current_${date}_${json.rule.disp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    document.getElementById("export_status").textContent="已下载 "+a.download;
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">下载失败：'+err+'</div>'; }
+}
+function copyLink(which){
+  const json=buildJson();
+  const base=which==="6"?"https://tenhou.net/6/":"https://tenhou.net/5/";
+  const link=base+"#json="+encodeURIComponent(JSON.stringify(json));
+  navigator.clipboard.writeText(link).then(()=>{
+    document.getElementById("export_status").textContent=`已复制 tenhou.net/${which} 链接`;
+  },()=>{ document.getElementById("export_status").textContent="复制失败，链接见右侧预览框"; });
+}
+function copyJson(){
+  try{
+    const json=buildJson();
+    navigator.clipboard.writeText(JSON.stringify(json,null,2)).then(()=>{
+      document.getElementById("export_status").textContent="已复制完整 json6 文本（可直接粘贴给 mortal）";
+    },()=>{
+      const ta=document.getElementById("json_preview"); ta.focus(); try{ document.execCommand("selectAll"); }catch(e){}
+      document.getElementById("export_status").textContent="复制失败，请手动从右侧预览框全选复制";
+    });
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">复制失败：'+err+'</div>'; }
+}
+function openTenhou6(){
+  try{
+    const json=buildJson();
+    const link="https://tenhou.net/6/#json="+encodeURIComponent(JSON.stringify(json));
+    window.open(link,"_blank");
+    document.getElementById("export_status").textContent="已在 tenhou.net/6 打开并加载牌谱（可逐步查看/切牌）";
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">打开失败：'+err+'</div>'; }
+}
+function openMortal(){
+  try{
+    const json=buildJson();
+    const pid=lastMeta?lastMeta.mySeat:0;
+    const txt=JSON.stringify(json,null,2);
+    const go=()=>{
+      window.open("https://mjai.ekyu.moe/zh-cn.html","_blank");
+      document.getElementById("export_status").textContent="已打开 Mortal 页面并复制牌谱（玩家ID="+pid+"）。请在页面切到「自定义 (tenhou.net/6 JSON)」，在「玩家 ID」填 "+pid+"，Ctrl+V 粘贴后点加载。";
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(go,go);
+    else go();
+  }catch(err){ document.getElementById("warnbox").innerHTML='<div class="warnbox">打开失败：'+err+'</div>'; }
+}
+function loadExample(){
+  document.getElementById("my_seat").value="0";
+  document.getElementById("kyoku").value="0";
+  document.getElementById("honba").value="0";
+  document.getElementById("riichi_sticks").value="0";
+  document.getElementById("dora").value="1m";
+  document.getElementById("scores").value="26000,24000,25000,25000";
+  document.getElementById("my_hand").value="123456789m12345p";
+  document.getElementById("my_draw").value="5p";
+  document.getElementById("my_river").value="1s 2s 5z 6z 7z";
+  document.getElementById("my_discard").value="1p";
+  document.getElementById("turn").value="5";
+  document.getElementById("my_riichi").checked=false;
+  doGenerate();
+}
+
+/* ============ 牌张面板 ============ */
+let lastInput=null;
+function buildPalette(){
+  const pal=document.getElementById("palette");
+  const defs=[];
+  for(const s of ["m","p","s"]) for(let n=1;n<=9;n++) defs.push({t:s,n});
+  defs.push({t:"z",n:1},{t:"z",n:2},{t:"z",n:3},{t:"z",n:4},{t:"z",n:5},{t:"z",n:6},{t:"z",n:7});
+  defs.push({t:"m",n:0},{t:"p",n:0},{t:"s",n:0});
+  defs.forEach(d=>{
+    const b=document.createElement("div");
+    b.className="tk "+d.t+(d.n===0?" aka":"");
+    b.textContent = d.n===0 ? "0"+d.t+"*" : d.n+d.t;
+    b.title = d.n===0?("赤5"+({m:"万",p:"筒",s:"索"}[d.t])):(d.n+({m:"万",p:"筒",s:"索",z:""}[d.t])+(d.t==="z"?["东","南","西","北","白","发","中"][d.n-1]:""));
+    b.addEventListener("click",()=>{
+      const tok=d.n+d.t;
+      if(lastInput){ const s=lastInput.value; lastInput.value=(s&&!/\s$/.test(s)?s+" ":"")+tok; lastInput.dispatchEvent(new Event("input",{bubbles:true})); }
+    });
+    pal.appendChild(b);
+  });
+}
+document.addEventListener("focusin",e=>{ if(e.target.classList&&e.target.classList.contains("tilein")) lastInput=e.target; });
+
+function init(){
+  buildPalette();
+  document.getElementById("generate").addEventListener("click",doGenerate);
+  document.getElementById("download").addEventListener("click",downloadJson);
+  document.getElementById("copy5").addEventListener("click",()=>copyLink("5"));
+  document.getElementById("copy6").addEventListener("click",()=>copyLink("6"));
+  document.getElementById("open6").addEventListener("click",openTenhou6);
+  document.getElementById("openmortal").addEventListener("click",openMortal);
+  document.getElementById("reroll").addEventListener("click",()=>{ if(lastEntry) doGenerate(); });
+  document.getElementById("load_example").addEventListener("click",loadExample);
+}
+if(typeof document!=="undefined") init();
+</script>
+</body>
+</html>
+</template>
+
+<script>
+(function(){
+  var NAGA_B64="Ly8gPT1Vc2VyU2NyaXB0PT0KLy8gQG5hbWUgICAgICAgICBOQUdBX0FOQUxZWkUgKGZpeGVkIGZvciBtb2Rlcm4gTWFoam9uZyBTb3VsKQovLyBAbmFtZXNwYWNlICAgIG1qZwovLyBAaWNvbiAgICAgICAgIGh0dHBzOi8vY2RuLm15YW5pbWVsaXN0Lm5ldC9pbWFnZXMvY2hhcmFjdGVycy8xMi83NTU4My5qcGcKLy8gQHZlcnNpb24gICAgICAwLjIuMAovLyBAZGVzY3JpcHRpb24gIENhcHR1cmUgYSBNYWhqb25nIFNvdWwgcmVwbGF5IHZpYSBXZWJTb2NrZXQgaG9vaywgZGVjb2RlIHRoZSBwcm90b2J1ZiBpbi1icm93c2VyLCBhbmQgZG93bmxvYWQgYSB0ZW5ob3UganNvbjYgKC5qc29uKSBmaWxlIGZvciBtb3J0YWwvYWtvY2hhbiBzY29yaW5nLiBQcmVzcyAicyIgd2hpbGUgYSA0LXBsYXllciByZXBsYXkgaXMgbG9hZGVkLgovLyBAYXV0aG9yICAgICAgIGZpeGVkIGJ1aWxkIChvcmlnaW5hbDogTkFHQV9BTkFMWVpFIDAuMS4xOyBtb2Rlcm4gY2FwdHVyZSBhZGFwdGVkIGZyb20gaG9udmwvTWFqc291bC10by1OQUdBIC8gQXNhQ2hpcmkvbWFqc291bC1uYWdhKQovLyBAbGljZW5zZSAgICAgIE1JVAovLyBAbWF0Y2ggICAgICAgIGh0dHBzOi8vZ2FtZS5tYWotc291bC5jb20vMS8qCi8vIEBtYXRjaCAgICAgICAgaHR0cHM6Ly9tYWhqb25nc291bC5nYW1lLnlvLXN0YXIuY29tLyoKLy8gQG1hdGNoICAgICAgICBodHRwczovL2dhbWUubWFoam9uZ3NvdWwuY29tLyoKLy8gQG1hdGNoICAgICAgICBodHRwczovL21hanNvdWwudW5pb24tZ2FtZS5jb20vMC8qCi8vIEBydW4tYXQgICAgICAgZG9jdW1lbnQtc3RhcnQKLy8gQGdyYW50ICAgICAgICBub25lCi8vID09L1VzZXJTY3JpcHQ9PQoKLyoKICogV2h5IHRoaXMgcmV3cml0ZSBleGlzdHMKICogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICogVGhlIG9yaWdpbmFsIE5BR0FfQU5BTFlaRSAoMC4xLjEpIGNhbGxlZCBHYW1lTWdyLkluc3QgLyBuZXQuTWVzc2FnZVdyYXBwZXIgLwogKiBhcHAuTmV0QWdlbnQgLyBjZmcgLyB1aXNjcmlwdCDigJQgZ2xvYmFscyB0aGF0IG1vZGVybiBNYWhqb25nIFNvdWwgbm8gbG9uZ2VyCiAqIGV4cG9zZXMuIFRob3NlIGNhbGxzIG5vdyBmYWlsIHNpbGVudGx5LCBzbyBwcmVzc2luZyAicyIgZGlkIG5vdGhpbmcuCiAqCiAqIFRoaXMgdmVyc2lvbiBob29rcyB3aW5kb3cuV2ViU29ja2V0IGF0IHBhZ2UgbG9hZCwgY2FwdHVyZXMgdGhlIHJhdwogKiBgZmV0Y2hHYW1lUmVjb3JkYCByZXBsYXkgcmVzcG9uc2UgZnJhbWUsIGRlY29kZXMgdGhlIE1haGpvbmcgU291bCBwcm90b2J1ZgogKiB3aXRoIGEgdGlueSBnZW5lcmljIHdpcmUtZGVjb2RlciAoa2V5ZWQgYnkgZmllbGQgbnVtYmVycyksIGNvbnZlcnRzIGl0IHRvIHRoZQogKiB0ZW5ob3UganNvbjYgZm9ybWF0LCBhbmQgZG93bmxvYWRzIGl0IGFzIGEgLmpzb24gZmlsZSB5b3UgY2FuIGZlZWQgdG8gbW9ydGFsLgogKiBJdCBhbHNvIHByaW50cyBhIHRlbmhvdS5uZXQvNSB2aWV3ZXIgbGluayBzbyB5b3UgY2FuIHNhbml0eS1jaGVjayB0aGUgcmVzdWx0LgogKgogKiBVc2FnZTogaW5zdGFsbCBpbiBUYW1wZXJtb25rZXkvVmlvbGVudG1vbmtleSwgb3BlbiBhIDQtcGxheWVyIHJlcGxheSwgd2FpdAogKiBmb3IgaXQgdG8gbG9hZCwgdGhlbiBwcmVzcyAicyIuIEEgZmlsZSBkb3dubG9hZCBzdGFydHMgYXV0b21hdGljYWxseS4KICovCihmdW5jdGlvbiAoKSB7CiAgInVzZSBzdHJpY3QiOwoKICAvLyAtLS0tIGNvbmZpZyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICBjb25zdCBUUklHR0VSX0tFWSA9ICJzIjsKCiAgLy8gLS0tLSBsb2dnaW5nIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgY29uc3QgVEFHID0gIltuYWdhLWFuYWx5emVdIjsKICBjb25zdCBsb2cgPSAoLi4uYSkgPT4gY29uc29sZS5sb2coVEFHLCAuLi5hKTsKICBjb25zdCB3YXJuID0gKC4uLmEpID0+IGNvbnNvbGUud2FybihUQUcsIC4uLmEpOwogIGNvbnN0IGxvZ0Vycm9yID0gKC4uLmEpID0+IGNvbnNvbGUuZXJyb3IoVEFHLCAuLi5hKTsKCiAgLy8gLS0tLSBnZW5lcmljIHByb3RvYnVmIHdpcmUgZGVjb2RlciAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgLy8gZGVjb2RlKFVpbnQ4QXJyYXkpIC0+IHsgZmllbGROdW1iZXI6IFt2YWx1ZXNdIH0sIHZhbHVlID0gbnVtYmVyICh2YXJpbnQpIG9yIFVpbnQ4QXJyYXkgKGxlbi1kZWxpbWl0ZWQpCiAgY29uc3QgVFdPNjMgPSAxbiA8PCA2M24sCiAgICBUV082NCA9IDFuIDw8IDY0bjsKICBjb25zdCB0b1NpZ25lZCA9IChiKSA9PiAoYiA+PSBUV082MyA/IGIgLSBUV082NCA6IGIpOwogIGNvbnN0IG51bSA9IChiKSA9PiBOdW1iZXIodG9TaWduZWQoYikpOwogIGZ1bmN0aW9uIHJlYWRWYXJpbnQoYnVmLCBwKSB7CiAgICBsZXQgc2hpZnQgPSAwbiwKICAgICAgcmVzdWx0ID0gMG47CiAgICBmb3IgKDs7KSB7CiAgICAgIGNvbnN0IGIgPSBidWZbcC5pKytdOwogICAgICByZXN1bHQgfD0gQmlnSW50KGIgJiAweDdmKSA8PCBzaGlmdDsKICAgICAgaWYgKCEoYiAmIDB4ODApKSByZXR1cm4gcmVzdWx0OwogICAgICBzaGlmdCArPSA3bjsKICAgIH0KICB9CiAgZnVuY3Rpb24gZGVjb2RlKGJ1ZikgewogICAgY29uc3Qgb3V0ID0ge30sCiAgICAgIHAgPSB7IGk6IDAgfTsKICAgIHdoaWxlIChwLmkgPCBidWYubGVuZ3RoKSB7CiAgICAgIGNvbnN0IHRhZyA9IE51bWJlcihyZWFkVmFyaW50KGJ1ZiwgcCkpLAogICAgICAgIGZuID0gdGFnID4+IDMsCiAgICAgICAgd3QgPSB0YWcgJiA3OwogICAgICBsZXQgdmFsOwogICAgICBpZiAod3QgPT09IDApIHZhbCA9IHJlYWRWYXJpbnQoYnVmLCBwKTsKICAgICAgZWxzZSBpZiAod3QgPT09IDIpIHsKICAgICAgICBjb25zdCBsZW4gPSBOdW1iZXIocmVhZFZhcmludChidWYsIHApKTsKICAgICAgICB2YWwgPSBidWYuc3ViYXJyYXkocC5pLCBwLmkgKyBsZW4pOwogICAgICAgIHAuaSArPSBsZW47CiAgICAgIH0gZWxzZSBpZiAod3QgPT09IDEpIHsKICAgICAgICBwLmkgKz0gODsKICAgICAgICB2YWwgPSAwbjsKICAgICAgfSBlbHNlIGlmICh3dCA9PT0gNSkgewogICAgICAgIHAuaSArPSA0OwogICAgICAgIHZhbCA9IDBuOwogICAgICB9IGVsc2UgYnJlYWs7CiAgICAgIChvdXRbZm5dID0gb3V0W2ZuXSB8fCBbXSkucHVzaCh2YWwpOwogICAgfQogICAgcmV0dXJuIG91dDsKICB9CiAgY29uc3QgVEQgPSBuZXcgVGV4dERlY29kZXIoKTsKICBjb25zdCBvbmUgPSAobSwgbikgPT4gKG1bbl0gPyBtW25dWzBdIDogdW5kZWZpbmVkKTsKICBjb25zdCBhbGwgPSAobSwgbikgPT4gbVtuXSB8fCBbXTsKICBjb25zdCBwaW50ID0gKG0sIG4pID0+IHsKICAgIGNvbnN0IHYgPSBvbmUobSwgbik7CiAgICByZXR1cm4gdiA9PT0gdW5kZWZpbmVkID8gMCA6IG51bSh2KTsKICB9OwogIGNvbnN0IHBib29sID0gKG0sIG4pID0+IHsKICAgIGNvbnN0IHYgPSBvbmUobSwgbik7CiAgICByZXR1cm4gdiAhPT0gdW5kZWZpbmVkICYmIHYgIT09IDBuOwogIH07CiAgY29uc3QgcHN0ciA9IChtLCBuKSA9PiB7CiAgICBjb25zdCB2ID0gb25lKG0sIG4pOwogICAgcmV0dXJuIHYgaW5zdGFuY2VvZiBVaW50OEFycmF5ID8gVEQuZGVjb2RlKHYpIDogIiI7CiAgfTsKICBjb25zdCBwc3RycyA9IChtLCBuKSA9PgogICAgYWxsKG0sIG4pCiAgICAgIC5maWx0ZXIoKHYpID0+IHYgaW5zdGFuY2VvZiBVaW50OEFycmF5KQogICAgICAubWFwKCh2KSA9PiBURC5kZWNvZGUodikpOwogIGNvbnN0IHBzdWIgPSAobSwgbikgPT4gewogICAgY29uc3QgdiA9IG9uZShtLCBuKTsKICAgIHJldHVybiB2IGluc3RhbmNlb2YgVWludDhBcnJheSA/IGRlY29kZSh2KSA6IG51bGw7CiAgfTsKICBjb25zdCBwc3VicyA9IChtLCBuKSA9PgogICAgYWxsKG0sIG4pCiAgICAgIC5maWx0ZXIoKHYpID0+IHYgaW5zdGFuY2VvZiBVaW50OEFycmF5KQogICAgICAubWFwKCh2KSA9PiBkZWNvZGUodikpOwogIGZ1bmN0aW9uIHBpbnRzKG0sIG4pIHsKICAgIGNvbnN0IG91dCA9IFtdOwogICAgZm9yIChjb25zdCB2IG9mIGFsbChtLCBuKSkgewogICAgICBpZiAodiBpbnN0YW5jZW9mIFVpbnQ4QXJyYXkpIHsKICAgICAgICBjb25zdCBwID0geyBpOiAwIH07CiAgICAgICAgd2hpbGUgKHAuaSA8IHYubGVuZ3RoKSBvdXQucHVzaChudW0ocmVhZFZhcmludCh2LCBwKSkpOwogICAgICB9IGVsc2Ugb3V0LnB1c2gobnVtKHYpKTsKICAgIH0KICAgIHJldHVybiBvdXQ7CiAgfQoKICAvLyAtLS0tIHRpbGVzIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICBjb25zdCBUU1VNT0dJUkkgPSA2MDsKICBjb25zdCBUWVBFID0geyBtOiAwLCBwOiAxLCBzOiAyLCB6OiAzIH07CiAgZnVuY3Rpb24gdGlsZSh0ZXh0KSB7CiAgICByZXR1cm4geyBudW06IHBhcnNlSW50KHRleHRbMF0sIDEwKSwgdDogVFlQRVt0ZXh0WzFdLnRvTG93ZXJDYXNlKCldIH07CiAgfQogIGZ1bmN0aW9uIHRFbmMoeCkgewogICAgcmV0dXJuIHgubnVtICE9PSAwID8gMTAgKiAoeC50ICsgMSkgKyB4Lm51bSA6IDUwICsgKHgudCArIDEpOwogIH0KICBmdW5jdGlvbiB0RGVha2EoeCkgewogICAgcmV0dXJuIHgubnVtID09PSAwICYmIHgudCAhPT0gVFlQRS56ID8geyBudW06IDUsIHQ6IHgudCB9IDogeDsKICB9CiAgY29uc3QgdEVxID0gKGEsIGIpID0+IGEubnVtID09PSBiLm51bSAmJiBhLnQgPT09IGIudDsKCiAgLy8gLS0tLSBtZWxkIC8gZGlzY2FyZCBlbmNvZGVycyAocmV0dXJuIGludCBvciBzdHJpbmcpIC0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgZnVuY3Rpb24gZW5jRGlzY2FyZChzKSB7CiAgICBsZXQgdiA9IHMudHN1bW9naXJpID8gVFNVTU9HSVJJIDogdEVuYyhzLnRpbGUpOwogICAgcmV0dXJuIHMucmlpY2hpID8gInIiICsgdiA6IHY7CiAgfQogIGZ1bmN0aW9uIGVuY0NoaShzKSB7CiAgICByZXR1cm4gImMiICsgdEVuYyhzLmNhbGxlZCkgKyB0RW5jKHMuYSkgKyB0RW5jKHMuYik7CiAgfQogIGZ1bmN0aW9uIGVuY1BvbihzKSB7CiAgICBjb25zdCB0ID0gW1N0cmluZyh0RW5jKHMuYSkpLCBTdHJpbmcodEVuYyhzLmIpKV07CiAgICB0LnNwbGljZShzLmZyLCAwLCAicCIgKyB0RW5jKHMuY2FsbGVkKSk7CiAgICByZXR1cm4gdC5qb2luKCIiKTsKICB9CiAgZnVuY3Rpb24gZW5jRGFpbWlua2FuKHMpIHsKICAgIGxldCBwb3MgPSBzLmZyID09PSAyID8gMyA6IHMuZnI7CiAgICBjb25zdCB0ID0gW1N0cmluZyh0RW5jKHMuYSkpLCBTdHJpbmcodEVuYyhzLmIpKSwgU3RyaW5nKHRFbmMocy5jKSldOwogICAgdC5zcGxpY2UocG9zLCAwLCAibSIgKyB0RW5jKHMuY2FsbGVkKSk7CiAgICByZXR1cm4gdC5qb2luKCIiKTsKICB9CiAgZnVuY3Rpb24gZW5jQW5rYW4ocykgewogICAgY29uc3QgdCA9IHRFbmMocy50aWxlKTsKICAgIGlmIChzLnRpbGUubnVtID09PSA1ICYmIHMudGlsZS50ICE9PSBUWVBFLnopIHsKICAgICAgcmV0dXJuICIiICsgdEVuYyh7IG51bTogMCwgdDogcy50aWxlLnQgfSkgKyB0ICsgdCArICJhIiArIHQ7CiAgICB9CiAgICByZXR1cm4gIiIgKyB0ICsgdCArIHQgKyAiYSIgKyB0OwogIH0KICBmdW5jdGlvbiBlbmNLYWthbihzKSB7CiAgICBjb25zdCB0ID0gW1N0cmluZyh0RW5jKHMuYSkpLCBTdHJpbmcodEVuYyhzLmIpKSwgU3RyaW5nKHRFbmMocy5jKSldOwogICAgdC5zcGxpY2Uocy5mciwgMCwgImsiICsgdEVuYyhzLmFkZGVkKSk7CiAgICByZXR1cm4gdC5qb2luKCIiKTsKICB9CiAgY29uc3QgZW5jWmVybyA9ICgpID0+IDA7CiAgZnVuY3Rpb24gZW5jU3RyZWFtKGl0ZW0pIHsKICAgIGlmIChpdGVtLmtpbmQgPT09ICJ0aWxlIikgcmV0dXJuIHRFbmMoaXRlbSk7CiAgICByZXR1cm4gaXRlbS5lbmMoaXRlbSk7CiAgfQoKICAvLyAtLS0tIHNjb3JpbmcgY29uc3RhbnRzICYgeWFrdSAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogIGNvbnN0IERBSVNBTkdFTiA9IDM3LAogICAgREFJU1VVU0hJID0gNTA7CiAgY29uc3QgVFNVTU9fT1lBX1BBWVNfS08gPSAxNjAwMCwKICAgIFRTVU1PX0tPX1BBWVNfT1lBID0gMTYwMDAsCiAgICBUU1VNT19LT19QQVlTX0tPID0gODAwMCwKICAgIFJPTl9PWUEgPSA0ODAwMCwKICAgIFJPTl9LTyA9IDMyMDAwOwogIGNvbnN0IFdJTkRTID0gWyLmnbEiLCAi5Y2XIiwgIuilvyIsICLljJciXTsKICBjb25zdCBMSU1JVCA9IHsKICAgIG1hbmdhbjogIua6gOiyqyIsCiAgICBoYW5lbWFuOiAi6Lez5rqAIiwKICAgIGJhaW1hbjogIuWAjea6gCIsCiAgICBzYW5iYWltYW46ICLkuInlgI3muoAiLAogICAgeWFrdW1hbjogIuW9uea6gCIsCiAgICBrYXpvZTogIuaVsOOBiOW9uea6gCIsCiAgICBraXJpYWdlOiAi5YiH44KK5LiK44GS5rqA6LKrIiwKICB9OwogIGNvbnN0IEFCT1JUID0geyAxOiAi5Lmd56iu5Lmd54mMIiwgMjogIuWbm+miqOmAo+aJkyIsIDM6ICLlm5vlrrbnq4vnm7QiLCA0OiAi5Zub6ZaL5qeTIiwgNTogIuS4ieWutuWSjCIgfTsKICBjb25zdCBZQUtVX05BTUVTID0gewogICAgMTogIumWgOWJjea4heiHquaRuOWSjCIsCiAgICAyOiAi56uL55u0IiwKICAgIDM6ICLmp43mp5MiLAogICAgNDogIuW2uuS4iumWi+iKsSIsCiAgICA1OiAi5rW35bqV5pG45pyIIiwKICAgIDY6ICLmsrPlupXmkojprZoiLAogICAgNzogIuW9ueeJjCDnmb0iLAogICAgODogIuW9ueeJjCDnmbwiLAogICAgOTogIuW9ueeJjCDkuK0iLAogICAgMTA6ICLlvbnniYw66Ieq6aKo54mMIiwKICAgIDExOiAi5b2554mMOuWgtOmiqOeJjCIsCiAgICAxMjogIuaWreW5uuS5nSIsCiAgICAxMzogIuS4gOebg+WPoyIsCiAgICAxNDogIuW5s+WSjCIsCiAgICAxNTogIua3t+WFqOW4r+W5uuS5nSIsCiAgICAxNjogIuS4gOawl+mAmuiyqyIsCiAgICAxNzogIuS4ieiJsuWQjOmghiIsCiAgICAxODogIuODgOODluODq+eri+ebtCIsCiAgICAxOTogIuS4ieiJsuWQjOWIuyIsCiAgICAyMDogIuS4ieank+WtkCIsCiAgICAyMTogIuWvvuOAheWSjCIsCiAgICAyMjogIuS4ieaal+WIuyIsCiAgICAyMzogIuWwj+S4ieWFgyIsCiAgICAyNDogIua3t+iAgemgrSIsCiAgICAyNTogIuS4g+WvvuWtkCIsCiAgICAyNjogIue0lOWFqOW4r+W5uuS5nSIsCiAgICAyNzogIua3t+S4gOiJsiIsCiAgICAyODogIuS6jOebg+WPoyIsCiAgICAyOTogIua4heS4gOiJsiIsCiAgICAzMDogIuS4gOeZuiIsCiAgICAzMTogIuODieODqSIsCiAgICAzMjogIui1pOODieODqSIsCiAgICAzMzogIuijj+ODieODqSIsCiAgICAzNDogIuaKnOOBjeODieODqSIsCiAgICAzNTogIuWkqeWSjCIsCiAgICAzNjogIuWcsOWSjCIsCiAgICAzNzogIuWkp+S4ieWFgyIsCiAgICAzODogIuWbm+aal+WIuyIsCiAgICAzOTogIuWtl+S4gOiJsiIsCiAgICA0MDogIue3keS4gOiJsiIsCiAgICA0MTogIua4heiAgemgrSIsCiAgICA0MjogIuWbveWjq+eEoeWPjCIsCiAgICA0MzogIuWwj+Wbm+WWnCIsCiAgICA0NDogIuWbm+ank+WtkCIsCiAgICA0NTogIuS5neiTruWuneeHiCIsCiAgICA0NjogIuWFq+mAo+iNmCIsCiAgICA0NzogIue0lOato+S5neiTruWuneeHiCIsCiAgICA0ODogIuWbm+aal+WIu+WNmOmojiIsCiAgICA0OTogIuWbveWjq+eEoeWPjOWNgeS4iemdouW+heOBoSIsCiAgICA1MDogIuWkp+Wbm+WWnCIsCiAgICA1MTogIueHlei/lOOBlyIsCiAgICA1MjogIuank+aMr+OCiiIsCiAgICA1MzogIuWNgeS6jOiQveaKrCIsCiAgICA1NDogIuS6lOmWgOaWiSIsCiAgICA1NTogIuS4iemAo+WIuyIsCiAgICA1NjogIuS4gOiJsuS4iemghiIsCiAgICA1NzogIuS4gOetkuaRuOaciCIsCiAgICA1ODogIuS5neetkuaSiOmtmiIsCiAgICA1OTogIuS6uuWSjCIsCiAgICA2MDogIuWkp+i7iui8qiIsCiAgICA2MTogIuWkp+erueaelyIsCiAgICA2MjogIuWkp+aVsOmaoyIsCiAgICA2MzogIuefs+OBruS4iuOBq+OCguS4ieW5tCIsCiAgICA2NDogIuWkp+S4g+aYnyIsCiAgICAxMDAwOiAi5qC5IiwKICAgIDEwMDE6ICLltrrkuIrplovoirEiLAogICAgMTAwMjogIuW2uuS4iuaUvumKgyIsCiAgICAxMDAzOiAi54Sh55Wq5ZKMIiwKICAgIDEwMDQ6ICLmp43mp5MiLAogICAgMTAwNTogIuWvvuOAheWSjCIsCiAgICAxMDA2OiAi5riF5LiA6ImyIiwKICAgIDEwMDc6ICLkuIPlr77lrZAiLAogICAgMTAwODogIuW4r+W5uuS5nSIsCiAgICAxMDA5OiAi6YeR5Yu+6YejIiwKICAgIDEwMTA6ICLmuIXlr74iLAogICAgMTAxMTogIuWwhuWvviIsCiAgICAxMDEyOiAi6b6N5LiD5a++IiwKICAgIDEwMTM6ICLmuIXkuIPlr74iLAogICAgMTAxNDogIua4hemHkeWLvumHoyIsCiAgICAxMDE1OiAi5riF6b6N5LiD5a++IiwKICAgIDEwMTY6ICLljYHlhavnvoXmvKIiLAogICAgMTAxNzogIua4heWNgeWFq+e+hea8oiIsCiAgICAxMDE4OiAi5aSp5ZKMIiwKICAgIDEwMTk6ICLlnLDlkowiLAogICAgMTAyMDogIua4heW5uuS5nSIsCiAgICAxMDIxOiAi5rW35bqV5pG45pyIIiwKICB9OwoKICBmdW5jdGlvbiB5YWt1TmFtZShpZCwgcm5kLCBzZWF0KSB7CiAgICBpZiAoaWQgPT09IDEwKSByZXR1cm4gIuiHqumiqCAiICsgV0lORFNbKCgoc2VhdCAtIHJuZC5reW9rdSkgJSA0KSArIDQpICUgNF07CiAgICBpZiAoaWQgPT09IDExKSByZXR1cm4gIuWgtOmiqCAiICsgV0lORFNbTWF0aC5mbG9vcihybmQua3lva3UgLyA0KV07CiAgICBpZiAoaWQgPT09IDE4KSByZXR1cm4gIuS4oeeri+ebtCI7CiAgICByZXR1cm4gWUFLVV9OQU1FU1tpZF0gfHwgInlha3UiICsgaWQ7CiAgfQogIGZ1bmN0aW9uIHBvaW50TGV2ZWwocHQpIHsKICAgIGxldCBqOwogICAgaWYgKHB0LnJvbiA9PT0gMCkgaiA9IHB0Lm95YSA/IChwdC50c3VtbyAqIDMpIC8gMS41IDogcHQudHN1bW8gKiAyICsgcHQudHN1bW9fb3lhOwogICAgZWxzZSBqID0gcHQub3lhID8gcHQucm9uIC8gMS41IDogcHQucm9uOwogICAgaWYgKGogPj0gMzIwMDApIHJldHVybiAieWFrdW1hbiI7CiAgICBpZiAoaiA+PSAyNDAwMCkgcmV0dXJuICJzYW5iYWltYW4iOwogICAgaWYgKGogPj0gMTYwMDApIHJldHVybiAiYmFpbWFuIjsKICAgIGlmIChqID49IDEyMDAwKSByZXR1cm4gImhhbmVtYW4iOwogICAgaWYgKGogPj0gODAwMCkgcmV0dXJuICJtYW5nYW4iOwogICAgcmV0dXJuIG51bGw7CiAgfQogIGZ1bmN0aW9uIHNjb3JlU3RyaW5nKHcpIHsKICAgIGxldCBwdHM7CiAgICBpZiAody50c3VtbykgcHRzID0gdy5veWEgPyBgJHt3LnBvaW50LnRzdW1vfeeCueKIgGAgOiBgJHt3LnBvaW50LnRzdW1vfS0ke3cucG9pbnQudHN1bW9fb3lhfeeCuWA7CiAgICBlbHNlIHB0cyA9IGAke3cucG9pbnQucm9ufeeCuWA7CiAgICBjb25zdCBsdiA9IHBvaW50TGV2ZWwody5wb2ludCk7CiAgICBpZiAobHYgPT09IG51bGwpIHJldHVybiBgJHt3LmZ1feespiR7dy5oYW596aOcJHtwdHN9YDsKICAgIGxldCBwcmVmaXg7CiAgICBpZiAobHYgPT09ICJ5YWt1bWFuIikgcHJlZml4ID0gdy5oYW4gPj0gMTMgPyBMSU1JVC5rYXpvZSA6IExJTUlULnlha3VtYW47CiAgICBlbHNlIGlmIChsdiA9PT0gIm1hbmdhbiIpIHsKICAgICAgY29uc3QgdG0gPSB3LmhhbiA+PSA1IHx8ICh3LmhhbiA+PSA0ICYmIHcuZnUgPj0gNDApIHx8ICh3LmhhbiA+PSAzICYmIHcuZnUgPj0gNzApOwogICAgICBwcmVmaXggPSB0bSA/IExJTUlULm1hbmdhbiA6IExJTUlULmtpcmlhZ2U7CiAgICB9IGVsc2UgcHJlZml4ID0gTElNSVRbbHZdOwogICAgcmV0dXJuIHByZWZpeCArIHB0czsKICB9CgogIC8vIC0tLS0gZ2FtZSBwYXJzZXIgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgY29uc3QgcmVsID0gKHNlYXQsIGZlZWRlcikgPT4gKHNlYXQgLSBmZWVkZXIgKyAzKSAlIDQ7CiAgZnVuY3Rpb24gR2FtZVBhcnNlcigpIHsKICAgIHRoaXMua3lva3VzID0gW107CiAgICB0aGlzLmN1ciA9IG51bGw7CiAgfQogIEdhbWVQYXJzZXIucHJvdG90eXBlLmZlZWQgPSBmdW5jdGlvbiAobmFtZSwgbSkgewogICAgc3dpdGNoIChuYW1lKSB7CiAgICAgIGNhc2UgIlJlY29yZE5ld1JvdW5kIjoKICAgICAgICByZXR1cm4gdGhpcy5fbmV3Um91bmQobSk7CiAgICAgIGNhc2UgIlJlY29yZERlYWxUaWxlIjoKICAgICAgICByZXR1cm4gdGhpcy5fZGVhbChtKTsKICAgICAgY2FzZSAiUmVjb3JkRGlzY2FyZFRpbGUiOgogICAgICAgIHJldHVybiB0aGlzLl9kaXNjYXJkKG0pOwogICAgICBjYXNlICJSZWNvcmRDaGlQZW5nR2FuZyI6CiAgICAgICAgcmV0dXJuIHRoaXMuX2NhbGwobSk7CiAgICAgIGNhc2UgIlJlY29yZEFuR2FuZ0FkZEdhbmciOgogICAgICAgIHJldHVybiB0aGlzLl9rYW4obSk7CiAgICAgIGNhc2UgIlJlY29yZExpdUp1IjoKICAgICAgICByZXR1cm4gdGhpcy5fbGl1anUobSk7CiAgICAgIGNhc2UgIlJlY29yZE5vVGlsZSI6CiAgICAgICAgcmV0dXJuIHRoaXMuX25vdGlsZShtKTsKICAgICAgY2FzZSAiUmVjb3JkSHVsZSI6CiAgICAgICAgcmV0dXJuIHRoaXMuX2h1bGUobSk7CiAgICB9CiAgfTsKICBHYW1lUGFyc2VyLnByb3RvdHlwZS5fYWNjZXB0UmlpY2hpID0gZnVuY3Rpb24gKCkgewogICAgaWYgKHRoaXMuX3BlbmRpbmcpIHsKICAgICAgdGhpcy5fcGVuZGluZyA9IGZhbHNlOwogICAgICB0aGlzLm5yaWljaGkrKzsKICAgIH0KICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9kb3JhID0gZnVuY3Rpb24gKGRvcmFzKSB7CiAgICBpZiAoZG9yYXMubGVuZ3RoID4gdGhpcy5jdXIuZG9yYXMubGVuZ3RoKSB0aGlzLmN1ci5kb3JhcyA9IGRvcmFzLm1hcCh0aWxlKTsKICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9jb3VudFBhbyA9IGZ1bmN0aW9uICh0LCBvd25lciwgZmVlZGVyKSB7CiAgICBpZiAodC50ICE9PSBUWVBFLnopIHJldHVybjsKICAgIGlmICh0Lm51bSA+PSAxICYmIHQubnVtIDw9IDQpIHsKICAgICAgaWYgKCsrdGhpcy5ub3dpbmRzW293bmVyXSA9PT0gNCkgdGhpcy5wYW93aW5kID0gZmVlZGVyOwogICAgfSBlbHNlIGlmICh0Lm51bSA+PSA1ICYmIHQubnVtIDw9IDcpIHsKICAgICAgaWYgKCsrdGhpcy5ub2RyYWdzW293bmVyXSA9PT0gMykgdGhpcy5wYW9kcmFnID0gZmVlZGVyOwogICAgfQogIH07CiAgR2FtZVBhcnNlci5wcm90b3R5cGUuX25ld1JvdW5kID0gZnVuY3Rpb24gKG0pIHsKICAgIGNvbnN0IHNjb3JlcyA9IHBpbnRzKG0sIDUpOwogICAgaWYgKHNjb3Jlcy5sZW5ndGggIT09IDQpIHRocm93IG5ldyBFcnJvcigib25seSA0LXBsYXllciBnYW1lcyBhcmUgc3VwcG9ydGVkIChnb3QgIiArIHNjb3Jlcy5sZW5ndGggKyAiKSIpOwogICAgY29uc3QgZG9yYSA9IHBzdHIobSwgNCk7CiAgICBjb25zdCBkb3JhcyA9IGRvcmEgPyBbdGlsZShkb3JhKV0gOiBwc3RycyhtLCAxNikubWFwKHRpbGUpOwogICAgY29uc3QgaGFpcGFpcyA9IFs3LCA4LCA5LCAxMF0ubWFwKChuKSA9PiBwc3RycyhtLCBuKS5tYXAodGlsZSkpOwogICAgdGhpcy5jdXIgPSB7CiAgICAgIHJuZDogeyBreW9rdTogNCAqIHBpbnQobSwgMSkgKyBwaW50KG0sIDIpLCBob25iYTogcGludChtLCAzKSwgcmlpY2hpOiBwaW50KG0sIDYpIH0sCiAgICAgIGluaXQ6IHNjb3JlcywKICAgICAgZG9yYXMsCiAgICAgIGRyYXdzOiBbW10sIFtdLCBbXSwgW11dLAogICAgICBkaXNjYXJkczogW1tdLCBbXSwgW10sIFtdXSwKICAgICAgaGFpcGFpcywKICAgICAgcmVzdWx0OiBudWxsLAogICAgfTsKICAgIHRoaXMuZGVhbGVyID0gcGludChtLCAyKTsKICAgIHRoaXMucG9wcGVkID0gdGhpcy5jdXIuaGFpcGFpc1t0aGlzLmRlYWxlcl0ucG9wKCk7CiAgICB0aGlzLmN1ci5kcmF3c1t0aGlzLmRlYWxlcl0ucHVzaCh7IGtpbmQ6ICJ0aWxlIiwgLi4udGhpcy5wb3BwZWQgfSk7CiAgICB0aGlzLmxkc2VhdCA9IC0xOwogICAgdGhpcy5ucmlpY2hpID0gMDsKICAgIHRoaXMubmthbiA9IDA7CiAgICB0aGlzLl9wZW5kaW5nID0gZmFsc2U7CiAgICB0aGlzLm5vd2luZHMgPSBbMCwgMCwgMCwgMF07CiAgICB0aGlzLm5vZHJhZ3MgPSBbMCwgMCwgMCwgMF07CiAgICB0aGlzLnBhb3dpbmQgPSAtMTsKICAgIHRoaXMucGFvZHJhZyA9IC0xOwogIH07CiAgR2FtZVBhcnNlci5wcm90b3R5cGUuX2RlYWwgPSBmdW5jdGlvbiAobSkgewogICAgdGhpcy5fYWNjZXB0UmlpY2hpKCk7CiAgICB0aGlzLl9kb3JhKHBzdHJzKG0sIDYpKTsKICAgIHRoaXMuY3VyLmRyYXdzW3BpbnQobSwgMSldLnB1c2goeyBraW5kOiAidGlsZSIsIC4uLnRpbGUocHN0cihtLCAyKSkgfSk7CiAgfTsKICBHYW1lUGFyc2VyLnByb3RvdHlwZS5fZGlzY2FyZCA9IGZ1bmN0aW9uIChtKSB7CiAgICBjb25zdCBzZWF0ID0gcGludChtLCAxKSwKICAgICAgdCA9IHRpbGUocHN0cihtLCAyKSk7CiAgICBsZXQgdGcgPSBwYm9vbChtLCA1KTsKICAgIGlmIChzZWF0ID09PSB0aGlzLmRlYWxlciAmJiB0aGlzLmN1ci5kaXNjYXJkc1tzZWF0XS5sZW5ndGggPT09IDAgJiYgdGhpcy5wb3BwZWQgJiYgdEVxKHQsIHRoaXMucG9wcGVkKSkKICAgICAgdGcgPSB0cnVlOwogICAgY29uc3QgcmlpY2hpID0gcGJvb2wobSwgMyk7CiAgICB0aGlzLmN1ci5kaXNjYXJkc1tzZWF0XS5wdXNoKHsgZW5jOiBlbmNEaXNjYXJkLCB0aWxlOiB0LCB0c3Vtb2dpcmk6IHRnLCByaWljaGkgfSk7CiAgICBpZiAocmlpY2hpKSB0aGlzLl9wZW5kaW5nID0gdHJ1ZTsKICAgIHRoaXMubGRzZWF0ID0gc2VhdDsKICAgIHRoaXMuX2RvcmEocHN0cnMobSwgOCkpOwogIH07CiAgR2FtZVBhcnNlci5wcm90b3R5cGUuX2NhbGwgPSBmdW5jdGlvbiAobSkgewogICAgdGhpcy5fYWNjZXB0UmlpY2hpKCk7CiAgICBjb25zdCBzZWF0ID0gcGludChtLCAxKSwKICAgICAgdHlwZSA9IHBpbnQobSwgMiksCiAgICAgIHRpbGVzID0gcHN0cnMobSwgMykubWFwKHRpbGUpOwogICAgaWYgKHR5cGUgPT09IDApIHRoaXMuY3VyLmRyYXdzW3NlYXRdLnB1c2goeyBlbmM6IGVuY0NoaSwgYTogdGlsZXNbMF0sIGI6IHRpbGVzWzFdLCBjYWxsZWQ6IHRpbGVzWzJdIH0pOwogICAgZWxzZSBpZiAodHlwZSA9PT0gMSkgewogICAgICBjb25zdCBmciA9IHJlbChzZWF0LCB0aGlzLmxkc2VhdCk7CiAgICAgIHRoaXMuX2NvdW50UGFvKHRpbGVzWzBdLCBzZWF0LCB0aGlzLmxkc2VhdCk7CiAgICAgIHRoaXMuY3VyLmRyYXdzW3NlYXRdLnB1c2goeyBlbmM6IGVuY1BvbiwgYTogdGlsZXNbMF0sIGI6IHRpbGVzWzFdLCBjYWxsZWQ6IHRpbGVzWzJdLCBmciB9KTsKICAgIH0gZWxzZSBpZiAodHlwZSA9PT0gMikgewogICAgICBjb25zdCBmciA9IHJlbChzZWF0LCB0aGlzLmxkc2VhdCk7CiAgICAgIHRoaXMuX2NvdW50UGFvKHRpbGVzWzBdLCBzZWF0LCB0aGlzLmxkc2VhdCk7CiAgICAgIHRoaXMuY3VyLmRyYXdzW3NlYXRdLnB1c2goewogICAgICAgIGVuYzogZW5jRGFpbWlua2FuLAogICAgICAgIGE6IHRpbGVzWzBdLAogICAgICAgIGI6IHRpbGVzWzFdLAogICAgICAgIGM6IHRpbGVzWzJdLAogICAgICAgIGNhbGxlZDogdGlsZXNbM10sCiAgICAgICAgZnIsCiAgICAgIH0pOwogICAgICB0aGlzLmN1ci5kaXNjYXJkc1tzZWF0XS5wdXNoKHsgZW5jOiBlbmNaZXJvIH0pOwogICAgICB0aGlzLm5rYW4rKzsKICAgIH0gZWxzZSB0aHJvdyBuZXcgRXJyb3IoImJhZCBSZWNvcmRDaGlQZW5nR2FuZy50eXBlPSIgKyB0eXBlKTsKICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9rYW4gPSBmdW5jdGlvbiAobSkgewogICAgY29uc3Qgc2VhdCA9IHBpbnQobSwgMSksCiAgICAgIHR5cGUgPSBwaW50KG0sIDIpLAogICAgICB0ID0gdGlsZShwc3RyKG0sIDMpKTsKICAgIHRoaXMubGRzZWF0ID0gc2VhdDsKICAgIGlmICh0eXBlID09PSAzKSB7CiAgICAgIHRoaXMuX2NvdW50UGFvKHQsIHNlYXQsIC0xKTsKICAgICAgdGhpcy5jdXIuZGlzY2FyZHNbc2VhdF0ucHVzaCh7IGVuYzogZW5jQW5rYW4sIHRpbGU6IHREZWFrYSh0KSB9KTsKICAgICAgdGhpcy5ua2FuKys7CiAgICB9IGVsc2UgaWYgKHR5cGUgPT09IDIpIHsKICAgICAgZm9yIChjb25zdCBzIG9mIHRoaXMuY3VyLmRyYXdzW3NlYXRdKSB7CiAgICAgICAgaWYgKHMuZW5jID09PSBlbmNQb24gJiYgdEVxKHREZWFrYShzLmNhbGxlZCksIHREZWFrYSh0KSkpIHsKICAgICAgICAgIHRoaXMuY3VyLmRpc2NhcmRzW3NlYXRdLnB1c2goeyBlbmM6IGVuY0tha2FuLCBhOiBzLmEsIGI6IHMuYiwgYzogcy5jYWxsZWQsIGFkZGVkOiB0LCBmcjogcy5mciB9KTsKICAgICAgICAgIHRoaXMubmthbisrOwogICAgICAgICAgYnJlYWs7CiAgICAgICAgfQogICAgICB9CiAgICB9IGVsc2UgdGhyb3cgbmV3IEVycm9yKCJiYWQgUmVjb3JkQW5HYW5nQWRkR2FuZy50eXBlPSIgKyB0eXBlKTsKICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9maW5pc2ggPSBmdW5jdGlvbiAoKSB7CiAgICB0aGlzLmt5b2t1cy5wdXNoKHRoaXMuY3VyKTsKICAgIHRoaXMuY3VyID0gbnVsbDsKICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9saXVqdSA9IGZ1bmN0aW9uIChtKSB7CiAgICB0aGlzLl9hY2NlcHRSaWljaGkoKTsKICAgIGNvbnN0IHR5cGUgPSBwaW50KG0sIDEpOwogICAgbGV0IHI7CiAgICBpZiAodHlwZSA9PT0gMSkgciA9IDE7CiAgICBlbHNlIGlmICh0eXBlID09PSAyKSByID0gMjsKICAgIGVsc2UgaWYgKHRoaXMubnJpaWNoaSA9PT0gNCkgciA9IDM7CiAgICBlbHNlIGlmICh0aGlzLm5rYW4gPT09IDQpIHIgPSA0OwogICAgZWxzZSB0aHJvdyBuZXcgRXJyb3IoImJhZCBSZWNvcmRMaXVKdS50eXBlPSIgKyB0eXBlKTsKICAgIHRoaXMuY3VyLnJlc3VsdCA9IHsga2luZDogImFib3J0IiwgY29kZTogciB9OwogICAgdGhpcy5fZmluaXNoKCk7CiAgfTsKICBHYW1lUGFyc2VyLnByb3RvdHlwZS5fbm90aWxlID0gZnVuY3Rpb24gKG0pIHsKICAgIGNvbnN0IGRlbHRhID0gWzAsIDAsIDAsIDBdOwogICAgZm9yIChjb25zdCBzIG9mIHBzdWJzKG0sIDMpKSB7CiAgICAgIGNvbnN0IGQgPSBwaW50cyhzLCAzKTsKICAgICAgZC5mb3JFYWNoKCh4LCBpKSA9PiAoZGVsdGFbaV0gKz0geCkpOwogICAgfQogICAgdGhpcy5jdXIucmVzdWx0ID0geyBraW5kOiAicnl1dWt5b2t1IiwgZGVsdGEsIG5hZ2FzaGk6IHBib29sKG0sIDEpIH07CiAgICB0aGlzLl9maW5pc2goKTsKICB9OwogIEdhbWVQYXJzZXIucHJvdG90eXBlLl9odWxlID0gZnVuY3Rpb24gKG0pIHsKICAgIGNvbnN0IHdpbnMgPSBbXTsKICAgIGxldCB1cmEgPSBbXTsKICAgIGZvciAoY29uc3QgaCBvZiBwc3VicyhtLCAxKSkgewogICAgICBjb25zdCBsaSA9IHBzdHJzKGgsIDkpOwogICAgICBpZiAobGkubGVuZ3RoID4gdXJhLmxlbmd0aCkgdXJhID0gbGkubWFwKHRpbGUpOwogICAgICB3aW5zLnB1c2godGhpcy5fcGFyc2VIdWxlKGgpKTsKICAgIH0KICAgIHRoaXMuY3VyLnJlc3VsdCA9IHsga2luZDogImFnYXJpIiwgd2lucywgdXJhLCBybmQ6IHRoaXMuY3VyLnJuZCB9OwogICAgdGhpcy5fZmluaXNoKCk7CiAgfTsKICBHYW1lUGFyc2VyLnByb3RvdHlwZS5fcGFyc2VIdWxlID0gZnVuY3Rpb24gKGgpIHsKICAgIGxldCBycCwgaGI7CiAgICBpZiAodGhpcy5ucmlpY2hpICE9PSAtMSkgewogICAgICBycCA9IDEwMDAgKiAodGhpcy5ucmlpY2hpICsgdGhpcy5jdXIucm5kLnJpaWNoaSk7CiAgICAgIGhiID0gMTAwICogdGhpcy5jdXIucm5kLmhvbmJhOwogICAgfSBlbHNlIHsKICAgICAgcnAgPSAwOwogICAgICBoYiA9IDA7CiAgICB9CiAgICBjb25zdCBzZWF0ID0gcGludChoLCA0KSwKICAgICAgemltbyA9IHBib29sKGgsIDUpLAogICAgICBxaW5qaWEgPSBwYm9vbChoLCA2KSwKICAgICAgeWltYW4gPSBwYm9vbChoLCAxMCk7CiAgICBjb25zdCBjb3VudCA9IHBpbnQoaCwgMTEpLAogICAgICBmdSA9IHBpbnQoaCwgMTMpOwogICAgY29uc3Qgcm9uZyA9IHBpbnQoaCwgMTUpLAogICAgICB6cWluID0gcGludChoLCAxNiksCiAgICAgIHp4aWFuID0gcGludChoLCAxNyk7CiAgICBjb25zdCBmYW5zID0gcHN1YnMoaCwgMTIpLm1hcCgoZikgPT4gKHsgaWQ6IHBpbnQoZiwgMyksIHZhbDogcGludChmLCAyKSB9KSk7CgogICAgbGV0IHBhbyA9IGZhbHNlLAogICAgICBsaWFibGUgPSAtMSwKICAgICAgbGlhYmxlRm9yID0gMDsKICAgIGlmICh5aW1hbikKICAgICAgZm9yIChjb25zdCBmIG9mIGZhbnMpIHsKICAgICAgICBpZiAoZi5pZCA9PT0gREFJU1VVU0hJICYmIHRoaXMucGFvd2luZCAhPT0gLTEpIHsKICAgICAgICAgIHBhbyA9IHRydWU7CiAgICAgICAgICBsaWFibGUgPSB0aGlzLnBhb3dpbmQ7CiAgICAgICAgICBsaWFibGVGb3IgPSBmLnZhbDsKICAgICAgICAgIGJyZWFrOwogICAgICAgIH0KICAgICAgICBpZiAoZi5pZCA9PT0gREFJU0FOR0VOICYmIHRoaXMucGFvZHJhZyAhPT0gLTEpIHsKICAgICAgICAgIHBhbyA9IHRydWU7CiAgICAgICAgICBsaWFibGUgPSB0aGlzLnBhb2RyYWc7CiAgICAgICAgICBsaWFibGVGb3IgPSBmLnZhbDsKICAgICAgICAgIGJyZWFrOwogICAgICAgIH0KICAgICAgfQoKICAgIGxldCBkZWx0YSwgcG9pbnQ7CiAgICBpZiAoemltbykgewogICAgICBkZWx0YSA9IFstaGIgLSB6eGlhbiwgLWhiIC0genhpYW4sIC1oYiAtIHp4aWFuLCAtaGIgLSB6eGlhbl07CiAgICAgIGlmIChzZWF0ID09PSB0aGlzLmRlYWxlcikgewogICAgICAgIGRlbHRhW3NlYXRdID0gcnAgKyAzICogKGhiICsgenhpYW4pOwogICAgICAgIHBvaW50ID0geyB0c3VtbzogenhpYW4sIHRzdW1vX295YTogMCwgcm9uOiAwLCBveWE6IHRydWUgfTsKICAgICAgfSBlbHNlIHsKICAgICAgICBkZWx0YVtzZWF0XSA9IHJwICsgaGIgKyB6cWluICsgMiAqIChoYiArIHp4aWFuKTsKICAgICAgICBkZWx0YVt0aGlzLmRlYWxlcl0gPSAtaGIgLSB6cWluOwogICAgICAgIHBvaW50ID0geyB0c3VtbzogenhpYW4sIHRzdW1vX295YTogenFpbiwgcm9uOiAwLCBveWE6IGZhbHNlIH07CiAgICAgIH0KICAgIH0gZWxzZSB7CiAgICAgIGRlbHRhID0gWzAsIDAsIDAsIDBdOwogICAgICBkZWx0YVtzZWF0XSA9IHJwICsgMyAqIGhiICsgcm9uZzsKICAgICAgZGVsdGFbdGhpcy5sZHNlYXRdID0gLTMgKiBoYiAtIHJvbmc7CiAgICAgIHBvaW50ID0geyByb246IHJvbmcsIHRzdW1vOiAwLCB0c3Vtb19veWE6IDAsIG95YTogcWluamlhIH07CiAgICAgIHRoaXMubnJpaWNoaSA9IC0xOwogICAgfQogICAgaWYgKHBhbykgewogICAgICBpZiAoIXppbW8pIHsKICAgICAgICBjb25zdCBwYXkgPSAzICogaGIgKyBNYXRoLmZsb29yKChsaWFibGVGb3IgKiAocWluamlhID8gUk9OX09ZQSA6IFJPTl9LTykpIC8gMik7CiAgICAgICAgZGVsdGFbbGlhYmxlXSAtPSBwYXk7CiAgICAgICAgZGVsdGFbdGhpcy5sZHNlYXRdICs9IHBheTsKICAgICAgfSBlbHNlIGlmIChxaW5qaWEpIHsKICAgICAgICBkZWx0YVtsaWFibGVdIC09IDIgKiBoYiArIGxpYWJsZUZvciAqIDIgKiBUU1VNT19PWUFfUEFZU19LTzsKICAgICAgICBmb3IgKGxldCBpID0gMDsgaSA8IDQ7IGkrKykKICAgICAgICAgIGlmIChpICE9PSBsaWFibGUgJiYgaSAhPT0gc2VhdCkgZGVsdGFbaV0gKz0gaGIgKyBsaWFibGVGb3IgKiBUU1VNT19PWUFfUEFZU19LTzsKICAgICAgfSBlbHNlIHsKICAgICAgICBkZWx0YVtsaWFibGVdIC09IDIgKiBoYiArIGxpYWJsZUZvciAqIChUU1VNT19LT19QQVlTX09ZQSArIFRTVU1PX0tPX1BBWVNfS08pOwogICAgICAgIGZvciAobGV0IGkgPSAwOyBpIDwgNDsgaSsrKQogICAgICAgICAgaWYgKGkgIT09IGxpYWJsZSAmJiBpICE9PSBzZWF0KQogICAgICAgICAgICBkZWx0YVtpXSArPSBoYiArIGxpYWJsZUZvciAqIChpID09PSB0aGlzLmRlYWxlciA/IFRTVU1PX0tPX1BBWVNfT1lBIDogVFNVTU9fS09fUEFZU19LTyk7CiAgICAgIH0KICAgIH0KICAgIHJldHVybiB7CiAgICAgIHNlYXQsCiAgICAgIGZyb206IHppbW8gPyBzZWF0IDogdGhpcy5sZHNlYXQsCiAgICAgIHBhbzogcGFvID8gbGlhYmxlIDogc2VhdCwKICAgICAgaGFuOiBjb3VudCwKICAgICAgZnUsCiAgICAgIHlha3U6IGZhbnMsCiAgICAgIG95YTogcWluamlhLAogICAgICB0c3VtbzogemltbywKICAgICAgeWFrdW1hbjogeWltYW4sCiAgICAgIHBvaW50LAogICAgICBkZWx0YSwKICAgIH07CiAgfTsKCiAgLy8gLS0tLSByZXN1bHQgKyByb3VuZCBlbmNvZGVycyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICBmdW5jdGlvbiBkdW1wUmVzdWx0KHIpIHsKICAgIGlmIChyLmtpbmQgPT09ICJhYm9ydCIpIHJldHVybiBbQUJPUlRbci5jb2RlXV07CiAgICBpZiAoci5raW5kID09PSAicnl1dWt5b2t1IikgcmV0dXJuIFtyLm5hZ2FzaGkgPyAi5rWB44GX5rqA6LKrIiA6ICLmtYHlsYAiLCByLmRlbHRhXTsKICAgIGNvbnN0IG91dCA9IFsi5ZKM5LqGIl07CiAgICBmb3IgKGNvbnN0IHcgb2Ygci53aW5zKSB7CiAgICAgIG91dC5wdXNoKHcuZGVsdGEpOwogICAgICBjb25zdCBkZXRhaWwgPSBbdy5zZWF0LCB3LmZyb20sIHcucGFvLCBzY29yZVN0cmluZyh3KV07CiAgICAgIGZvciAoY29uc3QgeSBvZiB3Lnlha3UpCiAgICAgICAgZGV0YWlsLnB1c2goYCR7eWFrdU5hbWUoeS5pZCwgci5ybmQsIHcuc2VhdCl9KCR7dy55YWt1bWFuID8gIuW9uea6gCIgOiB5LnZhbCArICLpo5wifSlgKTsKICAgICAgb3V0LnB1c2goZGV0YWlsKTsKICAgIH0KICAgIHJldHVybiBvdXQ7CiAgfQogIGZ1bmN0aW9uIGR1bXBLeW9rdShrKSB7CiAgICBjb25zdCBlbnRyeSA9IFsKICAgICAgW2sucm5kLmt5b2t1LCBrLnJuZC5ob25iYSwgay5ybmQucmlpY2hpXSwKICAgICAgay5pbml0LAogICAgICBrLmRvcmFzLm1hcCh0RW5jKSwKICAgICAgay5yZXN1bHQgJiYgay5yZXN1bHQua2luZCA9PT0gImFnYXJpIiA/IGsucmVzdWx0LnVyYS5tYXAodEVuYykgOiBbXSwKICAgIF07CiAgICBmb3IgKGxldCBzZWF0ID0gMDsgc2VhdCA8IDQ7IHNlYXQrKykgewogICAgICBlbnRyeS5wdXNoKGsuaGFpcGFpc1tzZWF0XS5tYXAodEVuYykpOwogICAgICBlbnRyeS5wdXNoKGsuZHJhd3Nbc2VhdF0ubWFwKGVuY1N0cmVhbSkpOwogICAgICBlbnRyeS5wdXNoKGsuZGlzY2FyZHNbc2VhdF0ubWFwKGVuY1N0cmVhbSkpOwogICAgfQogICAgaWYgKGsucmVzdWx0KSBlbnRyeS5wdXNoKGR1bXBSZXN1bHQoay5yZXN1bHQpKTsKICAgIHJldHVybiBlbnRyeTsKICB9CgogIC8vIC0tLS0gUmVzR2FtZVJlY29yZCAtPiB0ZW5ob3UganNvbjYgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICBmdW5jdGlvbiBkZWNvZGVSZWNvcmQocmVzQnl0ZXMpIHsKICAgIGNvbnN0IHJlcyA9IGRlY29kZShyZXNCeXRlcyk7CiAgICBjb25zdCBlcnIgPSBwc3ViKHJlcywgMSk7CiAgICBpZiAoZXJyICYmIHBpbnQoZXJyLCAxKSkgdGhyb3cgbmV3IEVycm9yKCJmZXRjaF9nYW1lX3JlY29yZCBlcnJvciAiICsgcGludChlcnIsIDEpKTsKICAgIGNvbnN0IGhlYWQgPSBwc3ViKHJlcywgMykgfHwge307CiAgICBjb25zdCBjZmcgPSBwc3ViKGhlYWQsIDUpOwogICAgY29uc3QgZ21vZGUgPSBjZmcgPyBwc3ViKGNmZywgMikgOiBudWxsOwogICAgY29uc3QgbW9kZSA9IGdtb2RlID8gcGludChnbW9kZSwgMSkgOiAwOwoKICAgIGNvbnN0IG5hbWVzID0gWyJBSSIsICJBSSIsICJBSSIsICJBSSJdOwogICAgZm9yIChjb25zdCBhIG9mIHBzdWJzKGhlYWQsIDExKSkgewogICAgICBjb25zdCBzZWF0ID0gcGludChhLCAyKSwKICAgICAgICBuaWNrID0gcHN0cihhLCAzKTsKICAgICAgaWYgKHNlYXQgPj0gMCAmJiBzZWF0IDwgNCAmJiBuaWNrKSBuYW1lc1tzZWF0XSA9IG5pY2s7CiAgICB9CiAgICBjb25zdCBzYyA9IFswLCAwLCAwLCAwLCAwLCAwLCAwLCAwXTsKICAgIGNvbnN0IHJlc3VsdCA9IHBzdWIoaGVhZCwgMTIpOwogICAgaWYgKHJlc3VsdCkgewogICAgICBmb3IgKGNvbnN0IHAgb2YgcHN1YnMocmVzdWx0LCAxKSkgewogICAgICAgIGNvbnN0IHNlYXQgPSBwaW50KHAsIDEpOwogICAgICAgIGlmIChzZWF0ID49IDAgJiYgc2VhdCA8IDQpIHsKICAgICAgICAgIHNjWzIgKiBzZWF0XSA9IHBpbnQocCwgMyk7CiAgICAgICAgICBzY1syICogc2VhdCArIDFdID0gcGludChwLCAyKSAvIDEwMDA7CiAgICAgICAgfQogICAgICB9CiAgICB9CiAgICByZXR1cm4gewogICAgICB1dWlkOiBwc3RyKGhlYWQsIDEpLAogICAgICBlbmRUaW1lOiBwaW50KGhlYWQsIDMpLAogICAgICBkYXRhOiBvbmUocmVzLCA0KSwKICAgICAgZGF0YVVybDogcHN0cihyZXMsIDUpLAogICAgICBtb2RlLAogICAgICBuYW1lcywKICAgICAgc2MsCiAgICB9OwogIH0KICBmdW5jdGlvbiBjb252ZXJ0KGRhdGFCbG9iLCBtZXRhKSB7CiAgICBjb25zdCBpbm5lciA9IGRlY29kZShkYXRhQmxvYik7CiAgICBjb25zdCBkZXRhaWxzID0gZGVjb2RlKG9uZShpbm5lciwgMikpOwogICAgY29uc3QgdmVyc2lvbiA9IHBpbnQoZGV0YWlscywgMik7CiAgICBsZXQgYmxvYnM7CiAgICBpZiAodmVyc2lvbiA8IDIxMDcxNSAmJiBkZXRhaWxzWzFdKSBibG9icyA9IGFsbChkZXRhaWxzLCAxKTsKICAgIGVsc2UKICAgICAgYmxvYnMgPSBwc3VicyhkZXRhaWxzLCAzKQogICAgICAgIC5tYXAoKGEpID0+IG9uZShhLCAzKSkKICAgICAgICAuZmlsdGVyKEJvb2xlYW4pOwoKICAgIGNvbnN0IHBhcnNlciA9IG5ldyBHYW1lUGFyc2VyKCk7CiAgICBmb3IgKGNvbnN0IGJsb2Igb2YgYmxvYnMpIHsKICAgICAgY29uc3QgdyA9IGRlY29kZShibG9iKTsKICAgICAgY29uc3QgbmFtZSA9IHBzdHIodywgMSkucmVwbGFjZSgvXlwubHFcLi8sICIiKTsKICAgICAgY29uc3QgYm9keSA9IG9uZSh3LCAyKTsKICAgICAgcGFyc2VyLmZlZWQobmFtZSwgYm9keSA/IGRlY29kZShib2R5KSA6IHt9KTsKICAgIH0KICAgIGNvbnN0IGxvZyA9IHBhcnNlci5reW9rdXMubWFwKGR1bXBLeW9rdSk7CiAgICAvLyBNYWhqb25nIFNvdWwgYWx3YXlzIHVzZXMgMyByZWQgZml2ZXMgKG9uZSBwZXIgc3VpdCkuCiAgICBjb25zdCBkaXNwID0gKG1ldGEubW9kZSA9PT0gMSA/ICLmnbEiIDogIuWNlyIpICsgIuWWsOi1pCI7CiAgICBjb25zdCB0cyA9IG1ldGEuZW5kVGltZQogICAgICA/IG5ldyBEYXRlKG1ldGEuZW5kVGltZSAqIDEwMDApLnRvSVNPU3RyaW5nKCkuc2xpY2UoMCwgMTkpLnJlcGxhY2UoIlQiLCAiICIpCiAgICAgIDogIiI7CiAgICByZXR1cm4gewogICAgICB2ZXI6ICIyLjMiLAogICAgICByZWY6IG1ldGEudXVpZCwKICAgICAgcmF0aW5nYzogIlBGNCIsCiAgICAgIHJ1bGU6IHsgZGlzcDogZGlzcCwgYWthNTM6IDEsIGFrYTUyOiAxLCBha2E1MTogMSB9LAogICAgICBsb2JieTogMCwKICAgICAgZGFuOiBbIiIsICIiLCAiIiwgIiJdLAogICAgICByYXRlOiBbMCwgMCwgMCwgMF0sCiAgICAgIHN4OiBbIkMiLCAiQyIsICJDIiwgIkMiXSwKICAgICAgbmFtZTogbWV0YS5uYW1lcyB8fCBbIkFJIiwgIkFJIiwgIkFJIiwgIkFJIl0sCiAgICAgIHNjOiBtZXRhLnNjIHx8IFswLCAwLCAwLCAwLCAwLCAwLCAwLCAwXSwKICAgICAgdGl0bGU6IFtkaXNwLCB0c10sCiAgICAgIGxvZywKICAgIH07CiAgfQoKICAvLyAtLS0tIGNhcHR1cmUgdmlhIFdlYlNvY2tldCBob29rIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgbGV0IGNhcHR1cmVkID0gbnVsbCwKICAgIHdhbnRJbmRleCA9IG51bGwsCiAgICBleHBlY3RpbmcgPSBmYWxzZTsKICBjb25zdCBSRVFfTUFSSyA9ICIubHEuTG9iYnkuZmV0Y2hHYW1lUmVjb3JkIjsKICBmdW5jdGlvbiBieXRlc0luY2x1ZGVBc2NpaShidWYsIHMpIHsKICAgIG91dGVyOiBmb3IgKGxldCBpID0gMDsgaSArIHMubGVuZ3RoIDw9IGJ1Zi5sZW5ndGg7IGkrKykgewogICAgICBmb3IgKGxldCBqID0gMDsgaiA8IHMubGVuZ3RoOyBqKyspIGlmIChidWZbaSArIGpdICE9PSBzLmNoYXJDb2RlQXQoaikpIGNvbnRpbnVlIG91dGVyOwogICAgICByZXR1cm4gdHJ1ZTsKICAgIH0KICAgIHJldHVybiBmYWxzZTsKICB9CiAgZnVuY3Rpb24gZnJhbWVCeXRlcyhkYXRhKSB7CiAgICBpZiAoZGF0YSBpbnN0YW5jZW9mIEFycmF5QnVmZmVyKSByZXR1cm4gbmV3IFVpbnQ4QXJyYXkoZGF0YSk7CiAgICBpZiAoQXJyYXlCdWZmZXIuaXNWaWV3KGRhdGEpKSByZXR1cm4gbmV3IFVpbnQ4QXJyYXkoZGF0YS5idWZmZXIsIGRhdGEuYnl0ZU9mZnNldCwgZGF0YS5ieXRlTGVuZ3RoKTsKICAgIHJldHVybiBudWxsOwogIH0KICBmdW5jdGlvbiBsb29rc0xpa2VSZWNvcmQod3JhcHBlckJ5dGVzKSB7CiAgICB0cnkgewogICAgICBjb25zdCByZXNCID0gb25lKGRlY29kZSh3cmFwcGVyQnl0ZXMpLCAyKTsKICAgICAgaWYgKCFyZXNCKSByZXR1cm4gZmFsc2U7CiAgICAgIGNvbnN0IHJlcyA9IGRlY29kZShyZXNCKTsKICAgICAgcmV0dXJuICEhKHJlc1szXSAmJiAocmVzWzRdIHx8IHJlc1s1XSkpOwogICAgfSBjYXRjaCAoXykgewogICAgICByZXR1cm4gZmFsc2U7CiAgICB9CiAgfQogIGZ1bmN0aW9uIGluc3RhbGxXc0hvb2soKSB7CiAgICAvLyBXaXRoIEBncmFudCBub25lIHRoZSBzY3JpcHQgcnVucyBpbiB0aGUgcGFnZSB3b3JsZCwgc28gd2luZG93IElTIHRoZQogICAgLy8gcGFnZSdzIHdpbmRvdy4gR3VhcmQgZm9yIG1hbmFnZXJzIHRoYXQgd3JhcCBpdCBpbiBhbiBpc29sYXRlZCB3b3JsZC4KICAgIGNvbnN0IFcgPSB0eXBlb2YgdW5zYWZlV2luZG93ICE9PSAidW5kZWZpbmVkIiAmJiB1bnNhZmVXaW5kb3cgPyB1bnNhZmVXaW5kb3cgOiB3aW5kb3c7CiAgICBjb25zdCBPcmlnID0gVy5XZWJTb2NrZXQ7CiAgICBpZiAoIU9yaWcpIHsKICAgICAgd2Fybigibm8gV2ViU29ja2V0IGNvbnN0cnVjdG9yIHRvIGhvb2siKTsKICAgICAgcmV0dXJuOwogICAgfQogICAgVy5XZWJTb2NrZXQgPSBuZXcgUHJveHkoT3JpZywgewogICAgICBjb25zdHJ1Y3QodGFyZ2V0LCBhcmdzKSB7CiAgICAgICAgY29uc3Qgd3MgPSBuZXcgdGFyZ2V0KC4uLmFyZ3MpOwogICAgICAgIGxvZygiV2ViU29ja2V0IGhvb2tlZDoiLCBhcmdzWzBdKTsKICAgICAgICBjb25zdCBvcmlnU2VuZCA9IHdzLnNlbmQuYmluZCh3cyk7CiAgICAgICAgd3Muc2VuZCA9IGZ1bmN0aW9uIChkYXRhKSB7CiAgICAgICAgICB0cnkgewogICAgICAgICAgICBjb25zdCBiID0gZnJhbWVCeXRlcyhkYXRhKTsKICAgICAgICAgICAgaWYgKAogICAgICAgICAgICAgIGIgJiYKICAgICAgICAgICAgICBiWzBdID09PSAyICYmCiAgICAgICAgICAgICAgYnl0ZXNJbmNsdWRlQXNjaWkoYiwgUkVRX01BUkspICYmCiAgICAgICAgICAgICAgcHN0cihkZWNvZGUoYi5zdWJhcnJheSgzKSksIDEpID09PSBSRVFfTUFSSwogICAgICAgICAgICApIHsKICAgICAgICAgICAgICB3YW50SW5kZXggPSBiWzFdIHwgKGJbMl0gPDwgOCk7CiAgICAgICAgICAgICAgZXhwZWN0aW5nID0gdHJ1ZTsKICAgICAgICAgICAgICBjYXB0dXJlZCA9IG51bGw7CiAgICAgICAgICAgICAgbG9nKCJmZXRjaEdhbWVSZWNvcmQgcmVxdWVzdCBzZWVuIChpZHggIiArIHdhbnRJbmRleCArICIpIik7CiAgICAgICAgICAgIH0KICAgICAgICAgIH0gY2F0Y2ggKF8pIHt9CiAgICAgICAgICByZXR1cm4gb3JpZ1NlbmQoZGF0YSk7CiAgICAgICAgfTsKICAgICAgICB3cy5hZGRFdmVudExpc3RlbmVyKCJtZXNzYWdlIiwgKGV2KSA9PiB7CiAgICAgICAgICBjb25zdCBoYW5kbGUgPSAoYnVmKSA9PiB7CiAgICAgICAgICAgIGlmIChjYXB0dXJlZCB8fCBidWZbMF0gIT09IDMpIHJldHVybjsKICAgICAgICAgICAgY29uc3Qgd3JhcHBlciA9IGJ1Zi5zdWJhcnJheSgzKTsKICAgICAgICAgICAgY29uc3QgaWR4TWF0Y2ggPSB3YW50SW5kZXggIT09IG51bGwgJiYgKGJ1ZlsxXSB8IChidWZbMl0gPDwgOCkpID09PSB3YW50SW5kZXg7CiAgICAgICAgICAgIGlmIChpZHhNYXRjaCB8fCAoZXhwZWN0aW5nICYmIGxvb2tzTGlrZVJlY29yZCh3cmFwcGVyKSkpIHsKICAgICAgICAgICAgICBjYXB0dXJlZCA9IGJ1Zi5zbGljZSgzKTsKICAgICAgICAgICAgICBleHBlY3RpbmcgPSBmYWxzZTsKICAgICAgICAgICAgICBsb2coImNhcHR1cmVkIHJlY29yZCBmcmFtZSAoIiArIGJ1Zi5sZW5ndGggKyAiIGJ5dGVzKSDigJQgcHJlc3MgJyIgKyBUUklHR0VSX0tFWSArICInIik7CiAgICAgICAgICAgIH0KICAgICAgICAgIH07CiAgICAgICAgICBpZiAoZXYuZGF0YSBpbnN0YW5jZW9mIEFycmF5QnVmZmVyKSBoYW5kbGUobmV3IFVpbnQ4QXJyYXkoZXYuZGF0YSkpOwogICAgICAgICAgZWxzZSBpZiAoZXYuZGF0YSBpbnN0YW5jZW9mIEJsb2IpIGV2LmRhdGEuYXJyYXlCdWZmZXIoKS50aGVuKChhYikgPT4gaGFuZGxlKG5ldyBVaW50OEFycmF5KGFiKSkpOwogICAgICAgIH0pOwogICAgICAgIHJldHVybiB3czsKICAgICAgfSwKICAgIH0pOwogICAgbG9nKCJXZWJTb2NrZXQgaG9vayBpbnN0YWxsZWQiKTsKICB9CgogIGZ1bmN0aW9uIGNhcHR1cmVkUmVzR2FtZVJlY29yZCgpIHsKICAgIGlmICghY2FwdHVyZWQpIHJldHVybiBudWxsOwogICAgY29uc3QgdyA9IGRlY29kZShjYXB0dXJlZCk7CiAgICByZXR1cm4gb25lKHcsIDIpIHx8IG51bGw7CiAgfQoKICAvLyAtLS0tIFVJIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogIGZ1bmN0aW9uIHRvYXN0KG1zZywgbXMgPSA1MDAwKSB7CiAgICBsZXQgZWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiX19uYV90b2FzdCIpOwogICAgaWYgKCFlbCkgewogICAgICBlbCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoImRpdiIpOwogICAgICBlbC5pZCA9ICJfX25hX3RvYXN0IjsKICAgICAgZWwuc3R5bGUuY3NzVGV4dCA9CiAgICAgICAgInBvc2l0aW9uOmZpeGVkO3otaW5kZXg6OTk5OTk7bGVmdDo1MCU7Ym90dG9tOjI4cHg7dHJhbnNmb3JtOnRyYW5zbGF0ZVgoLTUwJSk7YmFja2dyb3VuZDojMjIyO2NvbG9yOiNmZmY7cGFkZGluZzoxMHB4IDE2cHg7Ym9yZGVyLXJhZGl1czo4cHg7Zm9udDoxNHB4LzEuNCBzYW5zLXNlcmlmO21heC13aWR0aDo4MHZ3O2JveC1zaGFkb3c6MCAycHggMTBweCByZ2JhKDAsMCwwLC40KSI7CiAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQoZWwpOwogICAgfQogICAgZWwudGV4dENvbnRlbnQgPSBtc2c7CiAgICBlbC5zdHlsZS5vcGFjaXR5ID0gIjEiOwogICAgY2xlYXJUaW1lb3V0KGVsLl90KTsKICAgIGVsLl90ID0gc2V0VGltZW91dCgoKSA9PiAoZWwuc3R5bGUub3BhY2l0eSA9ICIwIiksIG1zKTsKICB9CiAgZnVuY3Rpb24gZG93bmxvYWRGaWxlKGZpbGVuYW1lLCB0ZXh0KSB7CiAgICBjb25zdCBlbGVtZW50ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgiYSIpOwogICAgZWxlbWVudC5zZXRBdHRyaWJ1dGUoImhyZWYiLCAiZGF0YTp0ZXh0L3BsYWluO2NoYXJzZXQ9dXRmLTgsIiArIGVuY29kZVVSSUNvbXBvbmVudCh0ZXh0KSk7CiAgICBlbGVtZW50LnNldEF0dHJpYnV0ZSgiZG93bmxvYWQiLCBmaWxlbmFtZSk7CiAgICBlbGVtZW50LnN0eWxlLmRpc3BsYXkgPSAibm9uZSI7CiAgICBkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGVsZW1lbnQpOwogICAgZWxlbWVudC5jbGljaygpOwogICAgZG9jdW1lbnQuYm9keS5yZW1vdmVDaGlsZChlbGVtZW50KTsKICB9CiAgYXN5bmMgZnVuY3Rpb24gY29weVRleHQodGV4dCkgewogICAgdHJ5IHsKICAgICAgYXdhaXQgbmF2aWdhdG9yLmNsaXBib2FyZC53cml0ZVRleHQodGV4dCk7CiAgICAgIHJldHVybiB0cnVlOwogICAgfSBjYXRjaCAoXykgewogICAgICByZXR1cm4gZmFsc2U7CiAgICB9CiAgfQogIGZ1bmN0aW9uIHZpZXdlckxpbmsodGVuaG91LCB3aGljaCkgewogICAgY29uc3QgYmFzZSA9IHdoaWNoID09PSAiNiIgPyAiaHR0cHM6Ly90ZW5ob3UubmV0LzYvIiA6ICJodHRwczovL3RlbmhvdS5uZXQvNS8iOwogICAgcmV0dXJuIGJhc2UgKyAiI2pzb249IiArIGVuY29kZVVSSUNvbXBvbmVudChKU09OLnN0cmluZ2lmeSh0ZW5ob3UpKTsKICB9CgogIGxldCBydW5uaW5nID0gZmFsc2U7CiAgYXN5bmMgZnVuY3Rpb24gcnVuKCkgewogICAgaWYgKHJ1bm5pbmcpIHJldHVybjsKICAgIHJ1bm5pbmcgPSB0cnVlOwogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzQnl0ZXMgPSBjYXB0dXJlZFJlc0dhbWVSZWNvcmQoKTsKICAgICAgaWYgKCFyZXNCeXRlcykgewogICAgICAgIHRvYXN0KCJObyByZXBsYXkgY2FwdHVyZWQgeWV0IOKAlCBvcGVuIChvciByZWxvYWQpIGEgNC1wbGF5ZXIgcmVwbGF5LCB0aGVuIHByZXNzICciICsgVFJJR0dFUl9LRVkgKyAiJy4iKTsKICAgICAgICByZXR1cm47CiAgICAgIH0KICAgICAgdG9hc3QoIkNvbnZlcnRpbmfigKYiKTsKICAgICAgY29uc3QgcmVjID0gZGVjb2RlUmVjb3JkKHJlc0J5dGVzKTsKICAgICAgbGV0IGJsb2IgPSByZWMuZGF0YTsKICAgICAgY29uc3QgdGVuaG91ID0gY29udmVydChibG9iLCByZWMpOwoKICAgICAgbG9nKCJkZWNvZGVkICIgKyB0ZW5ob3UubG9nLmxlbmd0aCArICIgcm91bmRzOyByZWY9IiArIHRlbmhvdS5yZWYgKyAiOyBtb2RlPSIgKyByZWMubW9kZSk7CiAgICAgIGxvZygiZnVsbCBqc29uNiBvYmplY3Q6IiwgdGVuaG91KTsKICAgICAgbG9nKCJwcmV2aWV3IGF0OiIsIHZpZXdlckxpbmsodGVuaG91LCAiNSIpKTsKCiAgICAgIC8vIGZpbGVuYW1lOiBkYXRlICsgcnVsZSBkaXNwbGF5CiAgICAgIGNvbnN0IGRhdGVQYXJ0ID0gdGVuaG91LnRpdGxlWzFdID8gdGVuaG91LnRpdGxlWzFdLnNsaWNlKDAsIDEwKSA6IG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKS5zbGljZSgwLCAxMCk7CiAgICAgIGNvbnN0IGZpbGVTYWZlID0gKHRlbmhvdS50aXRsZVswXSB8fCAicGFpcHUiKS5yZXBsYWNlKC9bIFwvXFw6Kj8iPD58XS9nLCAiXyIpOwogICAgICBjb25zdCBmaWxlbmFtZSA9IGAke2RhdGVQYXJ0fV8ke2ZpbGVTYWZlfS5qc29uYDsKCiAgICAgIGNvbnN0IGpzb24gPSBKU09OLnN0cmluZ2lmeSh0ZW5ob3UsIG51bGwsIDIpOwogICAgICBkb3dubG9hZEZpbGUoZmlsZW5hbWUsIGpzb24pOwoKICAgICAgY29uc3QgbGluazUgPSB2aWV3ZXJMaW5rKHRlbmhvdSwgIjUiKTsKICAgICAgY29uc3QgY29waWVkID0gYXdhaXQgY29weVRleHQobGluazUpOwogICAgICB0b2FzdCgKICAgICAgICBgRG93bmxvYWRlZCAke2ZpbGVuYW1lfSAoJHt0ZW5ob3UubG9nLmxlbmd0aH0g5bGAKS4g6aKE6KeI6ZO+5o6lJHtjb3BpZWQgPyAi5bey5aSN5Yi2IiA6ICLmnKrlpI3liLbvvIzop4HmjqfliLblj7Aife+8mnRlbmhvdS5uZXQvNWAsCiAgICAgICAgODAwMCwKICAgICAgKTsKICAgICAgaWYgKCFjb3BpZWQpIGxvZygidGVuaG91Lm5ldC81IHZpZXdlciBsaW5rOiIsIGxpbms1KTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgdG9hc3QoIkVycm9yOiAiICsgZS5tZXNzYWdlLCA4MDAwKTsKICAgICAgbG9nRXJyb3IoZSk7CiAgICB9IGZpbmFsbHkgewogICAgICBydW5uaW5nID0gZmFsc2U7CiAgICB9CiAgfQoKICBpbnN0YWxsV3NIb29rKCk7CiAgY29uc3QgaXNUeXBpbmcgPSAoZWwpID0+CiAgICAhIWVsICYmIChlbC5pc0NvbnRlbnRFZGl0YWJsZSB8fCAvXihJTlBVVHxURVhUQVJFQXxTRUxFQ1QpJC8udGVzdChlbC50YWdOYW1lIHx8ICIiKSk7CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigia2V5ZG93biIsIChlKSA9PiB7CiAgICBpZiAoZS5yZXBlYXQgfHwgZS5jdHJsS2V5IHx8IGUubWV0YUtleSB8fCBlLmFsdEtleSB8fCBpc1R5cGluZyhlLnRhcmdldCkpIHJldHVybjsKICAgIGlmIChlLmtleSA9PT0gVFJJR0dFUl9LRVkgfHwgZS5rZXkgPT09IFRSSUdHRVJfS0VZLnRvVXBwZXJDYXNlKCkpIHJ1bigpOwogIH0pOwogIGxvZygibG9hZGVkOyBvcGVuIGEgNC1wbGF5ZXIgcmVwbGF5IGFuZCBwcmVzcyAnIiArIFRSSUdHRVJfS0VZICsgIicuIik7Cn0pKCk7Ci8vIHZpbTogdHM9NCAgZXQK";
+  function b64decode(s){ var bin=atob(s); var b=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(b); }
+  function setH(ifr){ try{ if(ifr && ifr.contentDocument && ifr.contentDocument.body){ ifr.style.height=(ifr.contentDocument.body.scrollHeight+40)+'px'; } }catch(e){} }
+
+  var loaded={};
+  function loadIframe(name){
+    if(loaded[name]) return;
+    var tpl=document.getElementById('tpl-'+name);
+    var ifr=document.getElementById('ifr-'+name);
+    ifr.srcdoc=tpl.innerHTML;
+    loaded[name]=true;
+  }
+
+  var tabs=document.querySelectorAll('.tabbtn');
+  var sections={manual:document.getElementById('tab-manual'),current:document.getElementById('tab-current'),naga:document.getElementById('tab-naga')};
+  function showTab(name){
+    tabs.forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
+    Object.keys(sections).forEach(function(k){ sections[k].classList.toggle('hidden', k!==name); });
+    if(name==='manual'||name==='current'){
+      loadIframe(name);
+      var ifr=document.getElementById('ifr-'+name);
+      setTimeout(function(){ setH(ifr); }, 400);
+      setTimeout(function(){ setH(ifr); }, 1200);
+    }
+  }
+  tabs.forEach(function(b){ b.addEventListener('click', function(){ showTab(b.dataset.tab); }); });
+
+  document.getElementById('naga-copy').addEventListener('click', function(){
+    var code=b64decode(NAGA_B64);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(function(){ alert('已复制用户脚本代码，去 Tampermonkey「新建脚本」粘贴即可。'); }, function(){ prompt('复制失败，请手动复制：', code); });
+    } else { prompt('复制失败，请手动复制：', code); }
+  });
+  document.getElementById('naga-download').addEventListener('click', function(){
+    var code=b64decode(NAGA_B64);
+    var blob=new Blob([code],{type:'text/plain;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='NAGA_ANALYZE-0.2.0.user.js'; a.click();
+  });
+  document.getElementById('naga-preview').addEventListener('click', function(){
+    var txt=document.getElementById('naga-input').value.trim();
+    var out=document.getElementById('naga-output'), link=document.getElementById('naga-link'), st=document.getElementById('naga-status');
+    if(!txt){ out.textContent='（空）'; link.textContent=''; st.textContent=''; return; }
+    try{
+      var j=JSON.parse(txt);
+      out.textContent=JSON.stringify(j,null,2);
+      link.textContent='https://tenhou.net/5/#json='+encodeURIComponent(JSON.stringify(j));
+      st.textContent='解析成功：'+(j.log?j.log.length+' 局':'(无 log)');
+    }catch(e){ out.textContent='解析失败：'+e.message; link.textContent=''; st.textContent=''; }
+  });
+  document.getElementById('naga-copylink').addEventListener('click', function(){
+    var link=document.getElementById('naga-link').textContent;
+    if(!link) return;
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function(){ document.getElementById('naga-status').textContent='已复制链接'; });
+    else prompt('复制链接：', link);
+  });
+
+  showTab('manual');
+})();
+</script>
+</body>
+</html>

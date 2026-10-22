@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>手输牌谱 → json6 转换工具</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e2e6ea; --ink:#1f2733; --muted:#6b7684;
+    --accent:#2f6df0; --accent2:#0a8f5b; --danger:#d24b4b; --man:#2b6cb0; --pin:#2f9e44; --sou:#e8590c; --hon:#7b5cd6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:16px 20px;background:linear-gradient(90deg,#2f6df0,#0a8f5b);color:#fff}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 20px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
+  label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=text]{min-width:120px}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.good{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  button.ghost{background:transparent}
+  button.danger{color:var(--danger);border-color:#f0caca}
+  .names{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .names label{min-width:0}
+  .names input{width:100%}
+  .round{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:#fcfcfd}
+  .round>.rhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+  .players{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(max-width:760px){.players{grid-template-columns:1fr}}
+  .player{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+  .player h4{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .acts{list-style:none;margin:6px 0 0;padding:0;font-size:12px;color:var(--muted)}
+  .acts li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dotted #eee}
+  .acts .del{cursor:pointer;color:var(--danger)}
+  .tilein{width:180px}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .palette{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+  .tk{width:30px;height:38px;border-radius:6px;border:1px solid #cfd6dd;background:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+  .tk.m{color:var(--man)} .tk.p{color:var(--pin)} .tk.s{color:var(--sou)} .tk.z{color:var(--hon)}
+  .tk.aka{background:#ffe3e3;border-color:#ffb3b3}
+  .tk.sel{outline:2px solid var(--accent)}
+  pre{padding:12px;background:#0f1722;color:#d7e3f4;border-radius:8px;overflow:auto;max-height:340px;font:12px/1.45 ui-monospace,Consolas,monospace}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+  table.manual{border-collapse:collapse;width:100%;font-size:13px}
+  table.manual th,table.manual td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  table.manual th{background:#eef3fb}
+  code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .pill{display:inline-block;background:#eef3fb;color:#2f6df0;border-radius:999px;padding:1px 8px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>手输牌谱 → json6 转换工具</h1>
+  <p>手动录入雀魂 / 天凤牌谱，导出 tenhou json6（<code style="color:#fff">.json</code>）供 mortal / akochan 跑分；并可生成 tenhou.net/5 预览链接。无需联网。</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. 对局信息 -->
+  <div class="card">
+    <h2>① 对局信息</h2>
+    <div class="row">
+      <label>标题<input id="meta_title" type="text" value="手动牌谱" /></label>
+      <label>规则
+        <select id="meta_mode">
+          <option value="south">南喰（半庄）</option>
+          <option value="east">东喰（东风）</option>
+        </select>
+      </label>
+      <label>赤牌（红5）
+        <select id="meta_aka">
+          <option value="1">有（3枚）</option>
+          <option value="0">无</option>
+        </select>
+      </label>
+      <label>起始点数（可选，逗号分隔4家）
+        <input id="meta_scores" type="text" placeholder="25000,25000,25000,25000" />
+      </label>
+    </div>
+    <div class="names">
+      <label>东家 (Seat 0)<input id="name0" type="text" value="玩家1" /></label>
+      <label>南家 (Seat 1)<input id="name1" type="text" value="玩家2" /></label>
+      <label>西家 (Seat 2)<input id="name2" type="text" value="玩家3" /></label>
+      <label>北家 (Seat 3)<input id="name3" type="text" value="玩家4" /></label>
+    </div>
+    <div class="hint">规则显示将自动生成为「南喰赤」/「东喰赤」等，与 tenhou 记法一致。</div>
+  </div>
+
+  <!-- 2. 牌张面板 -->
+  <div class="card">
+    <h2>② 牌张输入面板</h2>
+    <div class="hint">先点下方某输入框使其获得焦点（边框变蓝），再点牌即可把牌“打”进该框。也可以直接手打记法，例如 <code>123456789m12345p</code>、<code>0m</code>（赤5万）。</div>
+    <div class="palette" id="palette"></div>
+    <div class="hint">色：<span style="color:var(--man)">万子(m)</span> · <span style="color:var(--pin)">筒子(p)</span> · <span style="color:var(--sou)">索子(s)</span> · <span style="color:var(--hon)">字牌(z：1东2南3西4北5白6发7中)</span> · 红底=赤5（0m/0p/0s）。</div>
+  </div>
+
+  <!-- 3. 对局（局）列表 -->
+  <div class="card">
+    <h2>③ 对局（每一局）</h2>
+    <div id="rounds"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="primary" id="add_round">+ 添加一局</button>
+      <button class="ghost" id="load_example">载入示例（东1 庄家立直自摸）</button>
+      <button class="ghost danger" id="clear_all">清空全部</button>
+    </div>
+  </div>
+
+  <!-- 4. 导出 -->
+  <div class="card">
+    <h2>④ 导出 / 预览</h2>
+    <div class="row">
+      <label style="flex-direction:row;align-items:center;gap:6px">分析视角（玩家ID，0=东家）<input id="analyze_seat" type="number" min="0" max="3" value="0" style="width:60px"/></label>
+    </div>
+    <div class="row">
+      <button class="good" id="download">下载 json6 (.json)</button>
+      <button id="copy5">复制 tenhou.net/5 预览链接</button>
+      <button class="ghost" id="copy6">复制 tenhou.net/6 链接</button>
+      <button id="copyjson" onclick="copyJson()">复制 json6 文本</button>
+      <button class="primary" id="open6" onclick="openTenhou6()">在 tenhou.net/6 打开（直接加载牌谱）</button>
+      <button id="openmortal" onclick="openMortal()">在 Mortal 分析（自动复制）</button>
+      <span id="export_status" class="hint"></span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="hint" style="margin-bottom:4px">完整 json6（点击「下载」保存为 .json 后交给 mortal）：</div>
+        <pre id="json_preview">（请先录入一局）</pre>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:4px">tenhou.net/5 单局预览链接（点按钮复制，粘到浏览器查看）：</div>
+        <pre id="link_preview"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作手册 -->
+  <div class="card">
+    <details open>
+      <summary>操作手册 / 记法说明（点此折叠）</summary>
+      <div id="manual_body"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============ 牌张编码（与 tenhou / NAGA 一致，已验证） ============ */
+const TYPE = { m:0, p:1, s:2, z:3 };
+function tObj(text){ return { num:parseInt(text[0],10), t:TYPE[text[1].toLowerCase()] }; }
+function tEnc(x){ return x.num!==0 ? 10*(x.t+1)+x.num : 50+(x.t+1); }
+function tDeaka(x){ return x.num===0 && x.t!==3 ? {num:5,t:x.t} : x; }
+const TSUMOGIRI = 60;
+
+// 把记法字符串解析为 tenhou 数字数组。
+// 支持标准 tenhou 写法：同花色用数字串 + 一个花色字母，如 "123456789m"=1-9万，
+// "111m"=三张1万，"0m"=赤5万。多组用空格/逗号分隔。
+//   "0m123p 55z" -> [51,11,12,13,21,22,45,45]
+function parseTiles(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase(), t=TYPE[suit];
+    for(const dch of tok.slice(0,-1)){
+      const num=parseInt(dch,10);
+      out.push( (num===0 && t!==3) ? 50+(t+1) : 10*(t+1)+num ); // 赤5 -> 51/52/53
+    }
+  });
+  return out;
+}
+// 解析为 tile 对象数组（保持顺序），供吃碰杠构造使用
+function tilesToObjs(str){
+  const out=[];
+  (str||"").replace(/\s+/g,"").match(/(\d+)([mpsz])/g)?.forEach(tok=>{
+    const suit=tok[tok.length-1].toLowerCase();
+    for(const dch of tok.slice(0,-1)) out.push(tObj(dch+suit));
+  });
+  return out;
+}
+function rel(seat, feeder){ return (seat - feeder + 3) % 4; } // 0上家 1对家 2下家
+
+function encChi(s){ return "c"+tEnc(s.called)+tEnc(s.a)+tEnc(s.b); }
+function encPon(s){ const t=[String(tEnc(s.a)),String(tEnc(s.b))]; t.splice(s.fr,0,"p"+tEnc(s.called)); return t.join(""); }
+function encDaiminkan(s){ let pos=s.fr===2?3:s.fr; const t=[String(tEnc(s.a)),String(tEnc(s.b)),String(tEnc(s.c))]; t.splice(pos,0,"m"+tEnc(s.called)); return t.join(""); }
+function encAnkan(s){ const t=tEnc(s.tile); if(s.tile.num===0||(s.tile.num===5&&s.tile.t!==3)) return ""+tEnc({num:0,t:s.tile.t})+t+t+"a"+t; return ""+t+t+t+"a"+t; }
+function encKakan(s){ const t=[String(tEnc(s.a)),String(tEnc(s.b)),String(tEnc(s.c))]; t.splice(s.fr,0,"k"+tEnc(s.added)); return t.join(""); }
+
+const SEAT_NAME = ["东","南","西","北"];
+const FR_LABEL = ["上家","对家","下家"]; // fr 0/1/2
+
+/* ============ 状态 ============ */
+let state = {
+  meta:{ title:"手动牌谱", mode:"south", aka:1, scores:[],
+         names:["玩家1","玩家2","玩家3","玩家4"] },
+  rounds:[]
+};
+
+function newRound(){
+  return {
+    kyoku:0, honba:0, riichi:0, dora:"", ura:"",
+    players:[ {haipai:"",acts:[]}, {haipai:"",acts:[]}, {haipai:"",acts:[]}, {haipai:"",acts:[]} ],
+    result:null
+  };
+}
+
+/* ============ 渲染 ============ */
+function renderMeta(){
+  document.getElementById("meta_title").value = state.meta.title;
+  document.getElementById("meta_mode").value = state.meta.mode;
+  document.getElementById("meta_aka").value = String(state.meta.aka);
+  document.getElementById("meta_scores").value = state.meta.scores.join(",");
+  for(let i=0;i<4;i++) document.getElementById("name"+i).value = state.meta.names[i];
+}
+function renderRounds(){
+  const box=document.getElementById("rounds");
+  box.innerHTML="";
+  state.rounds.forEach((r,ri)=>{
+    const dealer = r.kyoku%4;
+    const div=document.createElement("div");
+    div.className="round";
+    div.innerHTML = `
+      <div class="rhead">
+        <b>第 ${ri+1} 局</b>
+        <label>局<b style="font-weight:400">
+          <select data-r="${ri}" class="r_kyoku">
+            ${["东1","东2","东3","东4","南1","南2","南3","南4"].map((k,i)=>`<option value="${i}" ${r.kyoku==i?"selected":""}>${k}</option>`).join("")}
+          </select></b></label>
+        <label>本场<input class="r_honba" data-r="${ri}" type="number" min="0" value="${r.honba}" style="width:60px"/></label>
+        <label>立直棒<input class="r_riichi" data-r="${ri}" type="number" min="0" value="${r.riichi}" style="width:60px"/></label>
+        <label>宝牌指示牌<input class="r_dora tilein" data-r="${ri}" type="text" value="${r.dora}" placeholder="如 1m"/></label>
+        <label>里宝牌(可选)<input class="r_ura tilein" data-r="${ri}" type="text" value="${r.ura}" placeholder="如 5p"/></label>
+        <button class="ghost danger r_del" data-r="${ri}">删除本局</button>
+      </div>
+      <div class="players"></div>
+      <div class="rresult" data-r="${ri}"></div>
+    `;
+    box.appendChild(div);
+    const pwrap=div.querySelector(".players");
+    r.players.forEach((pl,si)=>{
+      const pc=document.createElement("div");
+      pc.className="player";
+      pc.innerHTML=`
+        <h4><span>${SEAT_NAME[si]}家 (Seat ${si})${si===dealer?" · 庄":""}</span></h4>
+        <label style="width:100%">配牌（${si===dealer?"14":"13"}张）<b style="font-weight:400">
+          <input class="p_haipai tilein" data-r="${ri}" data-s="${si}" type="text" value="${pl.haipai}" placeholder="如 123456789m12345p"/>
+        </b></label>
+        <div class="acts" data-r="${ri}" data-s="${si}"></div>
+        <div class="row" style="margin-top:6px">
+          <select class="a_type" data-r="${ri}" data-s="${si}">
+            <option value="turn">摸+打</option>
+            <option value="pon">碰</option>
+            <option value="chi">吃</option>
+            <option value="daiminkan">大明杠</option>
+            <option value="ankan">暗杠</option>
+            <option value="kakan">加杠</option>
+          </select>
+          <input class="a_tiles tilein" data-r="${ri}" data-s="${si}" type="text" placeholder="牌（碰/吃/明杠3-4张）" style="width:150px"/>
+          <select class="a_from" data-r="${ri}" data-s="${si}" title="来自谁（碰/吃/明杠/加杠）">
+            <option value="0">来自上家</option><option value="1">来自对家</option><option value="2">来自下家</option>
+          </select>
+          <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" class="a_riichi"/>立直</label>
+          <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" class="a_tg"/>摸切</label>
+          <button class="a_add" data-r="${ri}" data-s="${si}">+ 添加动作</button>
+        </div>
+        <div class="hint">摸+打：先填“摸到的牌”再填“打出的牌”，用空格或逗号分开，如 <code>1s 5p</code>。碰：3张（含被碰的那张）。吃：3张（被吃+自己2张）。明杠：4张。暗杠：1张。加杠：先填原碰的3张再填加杠的1张。</div>
+      `;
+      pwrap.appendChild(pc);
+      const ul=pc.querySelector(".acts");
+      pl.acts.forEach((a,ai)=> ul.appendChild(actLi(a,ri,si,ai)));
+    });
+    renderResult(r, ri, div.querySelector(".rresult"));
+  });
+}
+function actLi(a,ri,si,ai){
+  const li=document.createElement("li");
+  let txt;
+  if(a.kind==="turn") txt=`摸 ${a.draw??"—"} → 打 ${a.discard}${a.riichi?"（立直）":""}${a.tsumogiri?"（摸切）":""}`;
+  else if(a.kind==="pon") txt=`碰（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="chi") txt=`吃（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="daiminkan") txt=`大明杠（来自${FR_LABEL[a.fr]}）`;
+  else if(a.kind==="ankan") txt=`暗杠`;
+  else if(a.kind==="kakan") txt=`加杠（来自${FR_LABEL[a.fr]}）`;
+  li.innerHTML=`<span>${txt}</span><span class="del" data-r="${ri}" data-s="${si}" data-a="${ai}">✕</span>`;
+  return li;
+}
+function renderResult(r,ri,box){
+  const res=r.result;
+  const sel = res? res.type : "none";
+  box.innerHTML=`
+    <div class="row">
+      <label>本局结果
+        <select class="res_type" data-r="${ri}">
+          <option value="none" ${sel==="none"?"selected":""}>（未录入）</option>
+          <option value="tsumo" ${sel==="tsumo"?"selected":""}>和了·自摸</option>
+          <option value="ron" ${sel==="ron"?"selected":""}>和了·荣和</option>
+          <option value="ryuukyoku" ${sel==="ryuukyoku"?"selected":""}>流局</option>
+          <option value="nagashi" ${sel==="nagashi"?"selected":""}>流し満貫</option>
+          <option value="abort" ${sel==="abort"?"selected":""}>途中流局（九种九牌等）</option>
+        </select></label>
+      <label>赢家(Seat)<select class="res_win" data-r="${ri}">${[0,1,2,3].map(i=>`<option value="${i}" ${res&&res.winner==i?"selected":""}>${SEAT_NAME[i]}</option>`).join("")}</select></label>
+      <label>放铳/点炮(Seat，荣和时)<select class="res_from" data-r="${ri}">${[0,1,2,3].map(i=>`<option value="${i}" ${res&&res.from==i?"selected":""}>${SEAT_NAME[i]}</option>`).join("")}</select></label>
+      <label>点数变动 Δ（4家，逗号分隔）<input class="res_delta" data-r="${ri}" type="text" value="${res?res.delta.join(","):""}" placeholder="如 4500,-1500,-1500,-1500"/></label>
+    </div>
+    <div class="row">
+      <label style="width:100%">符/番/点数说明（自由文本，例：<code>30符1飜1500点∀</code> 或 <code>満貫2000点</code>）<input class="res_score" data-r="${ri}" type="text" value="${res?res.score:""}" placeholder="30符1飜1500点∀"/></label>
+    </div>
+    <div class="row">
+      <label style="width:100%">役（每行一个，例：<code>立直(1飜)</code> <code>平和(1飜)</code>；途中流局填 <code>九種九牌</code> 等）<textarea class="res_yaku" data-r="${ri}" rows="3" placeholder="立直(1飜)\n平和(1飜)">${res?res.yaku.join("\n"):""}</textarea></label>
+    </div>
+  `;
+}
+
+/* ============ 事件 ============ */
+function bindEvents(){
+  // meta
+  const ids=[["meta_title","title"],["meta_mode","mode"],["meta_aka","aka"],["meta_scores","scores"]];
+  ids.forEach(([id,key])=>document.getElementById(id).addEventListener("input",e=>{
+    let v=e.target.value;
+    if(key==="aka") v=parseInt(v,10);
+    if(key==="scores") v=v.split(",").map(s=>parseInt(s,10)).filter(n=>!isNaN(n));
+    state.meta[key]=v; renderPreview();
+  }));
+  for(let i=0;i<4;i++) document.getElementById("name"+i).addEventListener("input",e=>{state.meta.names[i]=e.target.value;renderPreview();});
+
+  document.getElementById("add_round").addEventListener("click",()=>{state.rounds.push(newRound());renderRounds();renderPreview();});
+  document.getElementById("clear_all").addEventListener("click",()=>{if(confirm("确定清空所有录入？")){state.rounds=[];renderRounds();renderPreview();}});
+  document.getElementById("load_example").addEventListener("click",loadExample);
+
+  // 事件委托
+  document.getElementById("rounds").addEventListener("change",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_kyoku")){state.rounds[+t.dataset.r].kyoku=+t.value;renderRounds();renderPreview();}
+    else if(t.classList.contains("r_honba")){state.rounds[+t.dataset.r].honba=+t.value||0;renderPreview();}
+    else if(t.classList.contains("r_riichi")){state.rounds[+t.dataset.r].riichi=+t.value||0;renderPreview();}
+    else if(t.classList.contains("r_dora")){state.rounds[+t.dataset.r].dora=t.value;renderPreview();}
+    else if(t.classList.contains("r_ura")){state.rounds[+t.dataset.r].ura=t.value;renderPreview();}
+    else if(t.classList.contains("a_from")){/* stored at add time */}
+    else if(t.classList.contains("res_type")){ setResultType(+t.dataset.r, t.value); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("res_win")){ state.rounds[+t.dataset.r].result.winner=+t.value; renderPreview(); }
+    else if(t.classList.contains("res_from")){ state.rounds[+t.dataset.r].result.from=+t.value; renderPreview(); }
+  });
+  document.getElementById("rounds").addEventListener("input",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_dora")||t.classList.contains("r_ura")){ state.rounds[+t.dataset.r][t.classList.contains("r_dora")?"dora":"ura"]=t.value; renderPreview(); }
+    else if(t.classList.contains("p_haipai")){ state.rounds[+t.dataset.r].players[+t.dataset.s].haipai=t.value; renderPreview(); }
+    else if(t.classList.contains("res_delta")){ const d=t.value.split(",").map(s=>parseInt(s,10)); if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.delta=d; renderPreview(); }
+    else if(t.classList.contains("res_score")){ if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.score=t.value; renderPreview(); }
+    else if(t.classList.contains("res_yaku")){ if(state.rounds[+t.dataset.r].result) state.rounds[+t.dataset.r].result.yaku=t.value.split("\n").map(s=>s.trim()).filter(Boolean); renderPreview(); }
+  });
+  document.getElementById("rounds").addEventListener("click",e=>{
+    const t=e.target;
+    if(t.classList.contains("r_del")){ state.rounds.splice(+t.dataset.r,1); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("a_del")){ const r=+t.dataset.r,s=+t.dataset.s,a=+t.dataset.a; state.rounds[r].players[s].acts.splice(a,1); renderRounds(); renderPreview(); }
+    else if(t.classList.contains("a_add")){ addAction(+t.dataset.r,+t.dataset.s); }
+  });
+
+  document.getElementById("download").addEventListener("click",downloadJson);
+  document.getElementById("copy5").addEventListener("click",()=>copyLink("5"));
+  document.getElementById("copy6").addEventListener("click",()=>copyLink("6"));
+}
+function setResultType(ri,type){
+  const r=state.rounds[ri];
+  if(type==="none"){ r.result=null; return; }
+  if(!r.result) r.result={type,winner:0,from:0,delta:[0,0,0,0],score:"",yaku:[]};
+  r.result.type=type;
+}
+function addAction(ri,si){
+  const root=document.querySelector(`.player .a_type[data-r="${ri}"][data-s="${si}"]`);
+  const sel=root.closest(".player");
+  const type=sel.querySelector(".a_type").value;
+  const tiles=sel.querySelector(".a_tiles").value;
+  const from=+sel.querySelector(".a_from").value;
+  const riichi=sel.querySelector(".a_riichi").checked;
+  const tg=sel.querySelector(".a_tg").checked;
+  const pl=state.rounds[ri].players[si];
+  try{
+    if(type==="turn"){
+      const parts=tiles.trim().split(/[\s,]+/).filter(Boolean);
+      if(parts.length<1) throw "摸+打：请填写牌（摸到的牌 打出的牌）";
+      const draw=parts[0]?parseTiles(parts[0])[0]:null;
+      const disc=parts[1]?parseTiles(parts[1])[0]:(parts[0]?parseTiles(parts[0])[0]:null);
+      if(disc==null) throw "摸+打：打出的牌缺失";
+      pl.acts.push({kind:"turn",draw,discard:disc,riichi,tsumogiri:tg});
+    } else if(type==="pon"){
+      const t=tilesToObjs(tiles); if(t.length!==3) throw "碰需要3张牌（含被碰的那张）";
+      pl.acts.push({kind:"pon",fr:from,called:t[0],a:t[1],b:t[2],meld:encPon({called:t[0],a:t[1],b:t[2],fr:from})});
+    } else if(type==="chi"){
+      const t=tilesToObjs(tiles); if(t.length!==3) throw "吃需要3张牌";
+      pl.acts.push({kind:"chi",fr:from,called:t[0],a:t[1],b:t[2],meld:encChi({called:t[0],a:t[1],b:t[2]})});
+    } else if(type==="daiminkan"){
+      const t=tilesToObjs(tiles); if(t.length!==4) throw "大明杠需要4张牌";
+      pl.acts.push({kind:"daiminkan",fr:from,called:t[0],a:t[1],b:t[2],c:t[3],meld:encDaiminkan({called:t[0],a:t[1],b:t[2],c:t[3],fr:from})});
+    } else if(type==="ankan"){
+      const t=tilesToObjs(tiles); if(t.length!==1) throw "暗杠需要1张牌";
+      pl.acts.push({kind:"ankan",tile:t[0],meld:encAnkan({tile:t[0]})});
+    } else if(type==="kakan"){
+      const t=tilesToObjs(tiles); if(t.length!==4) throw "加杠：先填原碰3张再填加杠1张，共4张";
+      pl.acts.push({kind:"kakan",fr:from,a:t[0],b:t[1],c:t[2],added:t[3],meld:encKakan({a:t[0],b:t[1],c:t[2],added:t[3],fr:from})});
+    }
+    sel.querySelector(".a_tiles").value="";
+    renderRounds(); renderPreview();
+  }catch(err){ alert("添加动作失败："+err); }
+}
+
+/* ============ 导出 / 转换 ============ */
+function buildEntry(r){
+  const kyokuVal = r.kyoku;            // 0..7
+  const init = state.meta.scores.length===4 ? state.meta.scores.slice() : [25000,25000,25000,25000];
+  const doras = parseTiles(r.dora);
+  const uras = r.result && (r.result.type==="tsumo"||r.result.type==="ron") ? parseTiles(r.ura) : [];
+  const draws=[[],[],[],[]], discards=[[],[],[],[]];
+  r.players.forEach((pl,si)=>{
+    pl.acts.forEach(a=>{
+      if(a.kind==="turn"){
+        if(a.draw!=null) draws[si].push(a.draw);
+        let d=a.discard;
+        if(a.tsumogiri) d=TSUMOGIRI;
+        if(a.riichi) d="r"+d;
+        discards[si].push(d);
+      } else if(a.kind==="pon"||a.kind==="chi"||a.kind==="daiminkan"){
+        draws[si].push(a.meld);
+        if(a.kind==="daiminkan") discards[si].push(0);
+      } else if(a.kind==="ankan"||a.kind==="kakan"){
+        discards[si].push(a.meld);
+      }
+    });
+  });
+  // tenhou 要求：每家 [配牌, 摸牌, 打牌] 依次交错，而非分组
+  const entry=[ [kyokuVal, r.honba||0, r.riichi||0], init, doras, uras ];
+  for(let i=0;i<4;i++){ entry.push(parseTiles(r.players[i].haipai)); entry.push(draws[i]); entry.push(discards[i]); }
+  // result
+  const res=r.result;
+  if(res){
+    if(res.type==="tsumo"||res.type==="ron"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      const detail=[ res.winner, res.type==="ron"?res.from:res.winner, res.winner, res.score||"" ];
+      (res.yaku||[]).forEach(y=>detail.push(y));
+      entry.push(["和了", delta, detail]);
+    } else if(res.type==="ryuukyoku"||res.type==="nagashi"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      entry.push([res.type==="nagashi"?"流し満貫":"流局", delta]);
+    } else if(res.type==="abort"){
+      const delta=(res.delta&&res.delta.length===4)?res.delta:[0,0,0,0];
+      const label=(res.yaku&&res.yaku[0])||"九種九牌";
+      entry.push([label, delta]);
+    }
+  }
+  return entry;
+}
+function buildJson(){
+  const mode = state.meta.mode==="south"?2:1;
+  const disp = (state.meta.mode==="south"?"南":"东")+"喰"+(state.meta.aka?"赤":"");
+  const log = state.rounds.map(buildEntry);
+  return {
+    ver:"2.3",
+    ref:"manual-"+Date.now(),
+    ratingc:"PF4",
+    rule:{ disp, aka53:state.meta.aka?1:0, aka52:state.meta.aka?1:0, aka51:state.meta.aka?1:0 },
+    lobby:0,
+    dan:["","","",""],
+    rate:[0,0,0,0],
+    sx:["C","C","C","C"],
+    name:state.meta.names.slice(0,4),
+    sc: state.meta.scores.length===4 ? [0,state.meta.scores[0]/1000,0,state.meta.scores[1]/1000,0,state.meta.scores[2]/1000,0,state.meta.scores[3]/1000] : [0,0,0,0,0,0,0,0],
+    title:[state.meta.title||"手动牌谱", ""],
+    log
+  };
+}
+function renderPreview(){
+  const json=buildJson();
+  document.getElementById("json_preview").textContent=JSON.stringify(json,null,2);
+  const link5="https://tenhou.net/5/#json="+encodeURIComponent(JSON.stringify(json));
+  document.getElementById("link_preview").textContent=link5;
+}
+function downloadJson(){
+  const json=buildJson();
+  const blob=new Blob([JSON.stringify(json,null,2)],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  const date=new Date().toISOString().slice(0,10);
+  a.download=`paipu_${date}_${json.rule.disp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  document.getElementById("export_status").textContent="已下载 "+a.download;
+}
+function copyLink(which){
+  const json=buildJson();
+  const base=which==="6"?"https://tenhou.net/6/":"https://tenhou.net/5/";
+  const link=base+"#json="+encodeURIComponent(JSON.stringify(json));
+  navigator.clipboard.writeText(link).then(()=>{
+    document.getElementById("export_status").textContent=`已复制 tenhou.net/${which} 链接`;
+  },()=>{ document.getElementById("export_status").textContent="复制失败，链接见右上预览框"; });
+}
+function copyJson(){
+  try{
+    const json=buildJson();
+    navigator.clipboard.writeText(JSON.stringify(json,null,2)).then(()=>{
+      document.getElementById("export_status").textContent="已复制完整 json6 文本（可直接粘贴给 mortal）";
+    },()=>{
+      const ta=document.getElementById("json_preview"); ta.focus(); try{ document.execCommand("selectAll"); }catch(e){}
+      document.getElementById("export_status").textContent="复制失败，请手动从右侧预览框全选复制";
+    });
+  }catch(err){ document.getElementById("export_status").textContent="复制失败："+err; }
+}
+function openTenhou6(){
+  try{
+    const json=buildJson();
+    const link="https://tenhou.net/6/#json="+encodeURIComponent(JSON.stringify(json));
+    window.open(link,"_blank");
+    document.getElementById("export_status").textContent="已在 tenhou.net/6 打开并加载牌谱（可逐步查看/切牌）";
+  }catch(err){ document.getElementById("export_status").textContent="打开失败："+err; }
+}
+function openMortal(){
+  try{
+    const json=buildJson();
+    const pid=parseInt(document.getElementById("analyze_seat").value,10);
+    const txt=JSON.stringify(json,null,2);
+    const go=()=>{
+      window.open("https://mjai.ekyu.moe/zh-cn.html","_blank");
+      document.getElementById("export_status").textContent="已打开 Mortal 页面并复制牌谱（玩家ID="+pid+"）。请在页面切到「自定义 (tenhou.net/6 JSON)」，在「玩家 ID」填 "+pid+"，Ctrl+V 粘贴后点加载。";
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(go,go);
+    else go();
+  }catch(err){ document.getElementById("export_status").textContent="打开失败："+err; }
+}
+
+/* ============ 示例 ============ */
+function loadExample(){
+  state.rounds=[];
+  const r=newRound();
+  r.kyoku=0; r.honba=0; r.riichi=0; r.dora="1m";
+  r.players[0].haipai="11123456789m1p";                 // 庄 14张
+  r.players[1].haipai="111222333m456p5s";
+  r.players[2].haipai="123456789p123s4z";
+  r.players[3].haipai="234566789s11z22z";
+  // 东1 简单流程：各家摸打，庄家最后立直自摸
+  r.players[1].acts.push({kind:"turn",draw:parseTiles("5m")[0],discard:parseTiles("5m")[0]});
+  r.players[2].acts.push({kind:"turn",draw:parseTiles("6p")[0],discard:parseTiles("6p")[0]});
+  r.players[3].acts.push({kind:"turn",draw:parseTiles("3s")[0],discard:parseTiles("3s")[0]});
+  r.players[0].acts.push({kind:"turn",draw:parseTiles("1s")[0],discard:parseTiles("1s")[0],riichi:true});
+  // 南家碰 2m（来自上家=庄家）
+  r.players[1].acts.push({kind:"pon",fr:0,called:tObj("2m"),a:tObj("2m"),b:tObj("2m"),meld:encPon({called:tObj("2m"),a:tObj("2m"),b:tObj("2m"),fr:0})});
+  r.players[1].acts.push({kind:"turn",draw:parseTiles("9p")[0],discard:parseTiles("9p")[0]});
+  // 庄家自摸：摸 5m 打 5m（摸切）再自摸——这里直接记录一个“和了”动作不便，改用结果字段
+  r.players[0].acts.push({kind:"turn",draw:parseTiles("7m")[0],discard:parseTiles("7m")[0],tsumogiri:true});
+  r.result={type:"tsumo",winner:0,from:0,delta:[4500,-1500,-1500,-1500],score:"30符1飜1500点∀",yaku:["立直(1飜)","平和(1飜)"]};
+  state.rounds.push(r);
+  renderRounds(); renderPreview();
+}
+
+/* ============ 牌张面板 ============ */
+let lastInput=null;
+function buildPalette(){
+  const pal=document.getElementById("palette");
+  const defs=[];
+  for(const s of ["m","p","s"]) for(let n=1;n<=9;n++) defs.push({t:s,n});
+  defs.push({t:"z",n:1},{t:"z",n:2},{t:"z",n:3},{t:"z",n:4},{t:"z",n:5},{t:"z",n:6},{t:"z",n:7});
+  defs.push({t:"m",n:0},{t:"p",n:0},{t:"s",n:0}); // 赤5
+  defs.forEach(d=>{
+    const b=document.createElement("div");
+    b.className="tk "+d.t+(d.n===0?" aka":"");
+    b.textContent = d.n===0 ? "0"+d.t+"*" : d.n+d.t;
+    b.title = d.n===0?("赤5"+({m:"万",p:"筒",s:"索"}[d.t])):(d.n+({m:"万",p:"筒",s:"索",z:""}[d.t])+(d.t==="z"?["东","南","西","北","白","发","中"][d.n-1]:""));
+    b.addEventListener("click",()=>{
+      const tok=d.n+d.t;
+      if(lastInput){ const s=lastInput.value; lastInput.value=(s&&!/\s$/.test(s)?s+" ":"")+tok; lastInput.dispatchEvent(new Event("input",{bubbles:true})); }
+    });
+    pal.appendChild(b);
+  });
+}
+// 记录最后聚焦的牌输入
+document.addEventListener("focusin",e=>{ if(e.target.classList&&e.target.classList.contains("tilein")) lastInput=e.target; });
+
+/* ============ 初始化 ============ */
+function init(){
+  buildPalette();
+  renderMeta();
+  renderRounds();
+  renderPreview();
+  bindEvents();
+}
+if(typeof document!=="undefined") init();
+
+/* ============ 操作手册内容（也用于离线阅读） ============ */
+const MANUAL = `
+<h3>一、这个工具做什么</h3>
+<p>把一局麻将牌谱<b>手动录入</b>成 tenhou 的 <b>json6</b> 格式（一个 <code>.json</code> 文件），可直接交给 <b>mortal / akochan</b> 跑分；同时生成 <b>tenhou.net/5</b> 预览链接，方便先看牌谱 replay。</p>
+
+<h3>二、牌张记法（雀魂/天凤通用）</h3>
+<table class="manual">
+<tr><th>种类</th><th>后缀</th><th>写法</th><th>tenhou 数字</th></tr>
+<tr><td>万子</td><td>m</td><td>1m 2m … 9m</td><td>11–19</td></tr>
+<tr><td>筒子</td><td>p</td><td>1p 2p … 9p</td><td>21–29</td></tr>
+<tr><td>索子</td><td>s</td><td>1s 2s … 9s</td><td>31–39</td></tr>
+<tr><td>字牌</td><td>z</td><td>1z东 2z南 3z西 4z北 5z白 6z发 7z中</td><td>41–47</td></tr>
+<tr><td>赤5（红宝牌）</td><td>0</td><td>0m 0p 0s</td><td>51 / 52 / 53</td></tr>
+</table>
+<p class="hint">一条手牌用“串”表示，如 <code>123456789m12345p</code> = 123456789万 + 12345筒。配牌框、宝牌框都直接填这种串。赤5 用 <code>0m/0p/0s</code>。</p>
+
+<h3>三、摸打与鸣牌记法</h3>
+<table class="manual">
+<tr><th>动作</th><th>tenhou 记法</th><th>说明</th></tr>
+<tr><td>打牌</td><td>数字（如 5s = 35）</td><td>普通切牌</td></tr>
+<tr><td>立直宣言打</td><td>前缀 <code>r</code>（如 r35）</td><td>立直的那一张</td></tr>
+<tr><td>摸切</td><td><code>60</code></td><td>刚摸的牌直接打出</td></tr>
+<tr><td>吃</td><td><code>c</code>+被吃+自己2张（如 c232425）</td><td>来自上/对/下家</td></tr>
+<tr><td>碰</td><td><code>p</code>+被碰+自己2张</td><td>如 p212121（1筒碰）</td></tr>
+<tr><td>大明杠</td><td><code>m</code>+被杠+自己3张</td><td>抢杠前的明杠</td></tr>
+<tr><td>暗杠</td><td><code>a</code> 收尾（如 323232a32）</td><td>自己4张</td></tr>
+<tr><td>加杠</td><td><code>k</code> 收尾（如 k313131）</td><td>碰后加一张</td></tr>
+</table>
+<p class="hint">本工具会替你生成这些前缀串，你只需在“动作”里选类型、填牌、选“来自谁”即可，不必手敲 c/p/m/a/k。</p>
+
+<h3>四、分步操作</h3>
+<ol>
+<li><b>① 对局信息</b>：填标题、规则（南喰/东喰）、赤牌有无、四家昵称、起始点数（可选）。</li>
+<li><b>② 牌张面板</b>：先点某个输入框使其高亮，再点牌面按钮即可“打”牌进去；也可直接手打记法。</li>
+<li><b>③ 添加一局</b>：选东1…南4、本场数、立直棒数、宝牌指示牌、里宝牌（和了时填）。</li>
+<li>每家填<b>配牌</b>（庄家14张、闲家13张），然后用“动作”逐条录入：摸+打 / 碰 / 吃 / 大明杠 / 暗杠 / 加杠（选来自上/对/下家，可勾立直·摸切）。</li>
+<li>最后在<b>本局结果</b>选 自摸/荣和/流局/流し満貫/途中流局，填赢家、放铳家、Δ点数（4家用逗号分隔，从雀魂结算画面照抄）、符番点数说明与役（每行一个）。</li>
+<li><b>④ 导出</b>：点“下载 json6”保存 <code>.json</code>；或“复制 tenhou.net/5 链接”先在线看 replay。右侧实时显示完整 json。</li>
+</ol>
+
+<h3>五、与 tenhou.net/6 的区别 & 提示</h3>
+<ul>
+<li>tenhou.net/6 自带“手動入力”，但其记法较硬核；本工具用按钮+表单降低门槛，导出格式与 tenhou.net/5/6 兼容。</li>
+<li>庄家配牌要填 <b>14</b> 张（含首摸的那张），闲家 <b>13</b> 张；首摸之后的每次“摸+打”都作为一条动作录入。</li>
+<li>Δ点数（各家增减）建议直接从雀魂结算画面照抄，避免手算出错；自摸时赢家 Δ 为正、其余为负。</li>
+<li>三麻（3人）暂不支持（mortal 跑分为4人）；中途流局填役名为“九種九牌/四風連打/四家立直/四開槓”。</li>
+<li>导出后把 <code>.json</code> 交给 mortal/akochan 即可跑分。</li>
+</ul>
+`;
+if(typeof document!=="undefined") document.getElementById("manual_body").innerHTML=MANUAL;
+</script>
+</body>
+</html>
